@@ -154,6 +154,17 @@ input.t::placeholder{color:var(--muted);opacity:.7}
 .tips{padding:4px 20px 12px;font-size:15.5px;line-height:1.6}
 .tips p{margin:0 0 10px}
 .tips b{font-weight:650}
+.btn{
+  display:flex;align-items:center;justify-content:center;width:100%;height:48px;margin:10px 0 4px;border:0;border-radius:12px;
+  background:var(--accent);color:var(--paper);font-size:16.5px;font-weight:650;text-decoration:none;
+}
+.btn.ghost{background:none;color:var(--accent);border:1.5px solid var(--accent)}
+.btn:disabled{opacity:.6}
+.fl{display:block;margin-top:12px;font-size:14px;color:var(--muted)}
+.fl input{
+  display:block;width:100%;margin-top:6px;height:46px;border:1.5px solid var(--rule);border-radius:12px;
+  background:var(--paper);color:var(--ink);font:inherit;font-size:17px;padding:0 12px;
+}
 #toast{
   position:fixed;left:50%;bottom:calc(110px + var(--safe-b));transform:translate(-50%,10px);z-index:30;
   background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-size:14.5px;
@@ -199,7 +210,9 @@ const fmt=new Intl.NumberFormat('en-IN',{maximumFractionDigits:2});
 const rnd=n=>Math.round(n*100)/100;
 const money=n=>'₹'+fmt.format(rnd(n));
 const mk=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-const newRow=(t='')=>({id:uid(),t});
+// u = aakhri edit ka time (sync me naya wala jeetta hai). Khali nayi line ka u 0 rehta hai.
+const newRow=(t='')=>({id:uid(),t,u:t?Date.now():0});
+const newPage=(name,rows=[newRow()])=>({id:uid(),name,nu:0,rows,del:[]});
 const titleOf=k=>{const [y,m]=k.split('-').map(Number);return new Date(y,m-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'})};
 
 /* ---------- amount parsing ---------- */
@@ -222,12 +235,15 @@ function normalize(j){
   const out={months:{},theme:'auto'};
   for(const [k,m] of Object.entries(j.months||{})){
     if(!/^\d{4}-\d{2}$/.test(k)||!m||!Array.isArray(m.pages))continue;
+    // Purane data me u/nu/del/gone nahi hote, unhe default se bhar do.
+    const ids=a=>Array.isArray(a)?a.filter(x=>typeof x==='string'):[];
     const pages=m.pages.map(p=>({
-      id:p.id||uid(),name:String(p.name||'Kharcha').slice(0,30),
-      rows:(Array.isArray(p.rows)&&p.rows.length?p.rows:[newRow()]).map(r=>({id:r.id||uid(),t:String(r.t||'')}))
+      id:p.id||uid(),name:String(p.name||'Kharcha').slice(0,30),nu:+p.nu||0,
+      rows:(Array.isArray(p.rows)&&p.rows.length?p.rows:[newRow()]).map(r=>({id:r.id||uid(),t:String(r.t||''),u:+r.u||0})),
+      del:ids(p.del)
     }));
     if(!pages.length)continue;
-    out.months[k]={pages,active:(pages.find(p=>p.id===m.active)||pages[0]).id};
+    out.months[k]={pages,active:(pages.find(p=>p.id===m.active)||pages[0]).id,gone:ids(m.gone)};
   }
   if(['auto','light','dark'].includes(j.theme))out.theme=j.theme;
   return out;
@@ -236,11 +252,15 @@ function load(){
   try{const j=JSON.parse(localStorage.getItem(KEY));if(j&&typeof j.months==='object')return normalize(j)}catch(e){}
   return {months:{},theme:'auto'};
 }
-let S=load(), saveT;
+let S=load(), saveT, lastEdit=0;
+function write(){
+  clearTimeout(saveT);
+  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Save nahi hua. Browser storage band ya full hai')}
+}
 function save(now){
   clearTimeout(saveT);
-  const go=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Save nahi hua. Browser storage band ya full hai')}};
-  now?go():saveT=setTimeout(go,250);
+  now?write():saveT=setTimeout(write,250);
+  lastEdit=Date.now();scheduleSync(4000);
 }
 
 /* ---------- model helpers ---------- */
@@ -251,8 +271,8 @@ function monthOf(k){
     const keys=Object.keys(S.months).sort();
     const prev=keys.filter(x=>x<k).pop()||keys[0];
     const names=prev?S.months[prev].pages.map(p=>p.name):['Kharcha'];
-    const pages=names.map(n=>({id:uid(),name:n,rows:[newRow()]}));
-    S.months[k]={pages,active:pages[0].id};
+    const pages=names.map(n=>newPage(n));
+    S.months[k]={pages,active:pages[0].id,gone:[]};
   }
   return S.months[k];
 }
@@ -365,8 +385,9 @@ function removeRow(id){
   if(i<0)return;
   const d=rowDom(id);
   if(p.rows.length<=1){
-    p.rows[0].t='';d.querySelector('input').value='';setAmt(d,'');
+    p.rows[0].t='';p.rows[0].u=Date.now();d.querySelector('input').value='';setAmt(d,'');
   }else{
+    if(p.rows[i].u||p.rows[i].t.trim())p.del.push(id);
     p.rows.splice(i,1);sel.delete(id);
     const prev=d.previousElementSibling, next=d.nextElementSibling;
     d.remove();
@@ -387,7 +408,7 @@ function tapBlank(){
 elSheet.addEventListener('input',e=>{
   const i=e.target; if(!i.classList.contains('t'))return;
   const d=i.closest('.row'), r=findRow(d.dataset.id); if(!r)return;
-  r.t=i.value;setAmt(d,r.t);renderTotals();save();
+  r.t=i.value;r.u=Date.now();setAmt(d,r.t);renderTotals();save();
 });
 elSheet.addEventListener('keydown',e=>{
   const i=e.target; if(!i.classList.contains('t')||e.isComposing)return;
@@ -405,7 +426,7 @@ elSheet.addEventListener('paste',e=>{
   e.preventDefault();
   const p=P(), d=i.closest('.row'), idx=p.rows.findIndex(r=>r.id===d.dataset.id);
   let at=idx;
-  if(!p.rows[idx].t.trim()){p.rows[idx].t=lines.shift()}
+  if(!p.rows[idx].t.trim()){p.rows[idx].t=lines.shift();p.rows[idx].u=Date.now()}
   const added=lines.map(t=>newRow(t));
   p.rows.splice(at+1,0,...added);
   renderRows();renderTotals();save();
@@ -452,23 +473,24 @@ elTabs.addEventListener('click',e=>{
 function addPage(){
   const n=prompt('Naye page ka naam (jaise: Ghar, Bazaar, Travel)');
   if(!n||!n.trim())return;
-  const m=M(), p={id:uid(),name:n.trim().slice(0,30),rows:[newRow()]};
+  const m=M(), p=newPage(n.trim().slice(0,30));
   m.pages.push(p);m.active=p.id;sel.clear();renderAll();save();
 }
 function renamePage(){
   const p=P(), n=prompt('Page ka naya naam',p.name);
   if(!n||!n.trim())return;
-  p.name=n.trim().slice(0,30);renderTabs();renderTotals();save();
+  p.name=n.trim().slice(0,30);p.nu=Date.now();renderTabs();renderTotals();save();
 }
 function deletePage(){
   const m=M(), p=P();
   if(m.pages.length<2)return toast('Kam se kam ek page rehna chahiye');
   if(!confirm('"'+p.name+'" page aur uski saari lines delete karein?'))return;
-  m.pages=m.pages.filter(x=>x!==p);m.active=m.pages[0].id;sel.clear();renderAll();save();
+  m.gone.push(p.id);m.pages=m.pages.filter(x=>x!==p);m.active=m.pages[0].id;sel.clear();renderAll();save();
 }
 function clearPage(){
   if(!confirm('Is page ki saari lines hata dein?'))return;
-  P().rows=[newRow()];sel.clear();renderRows();renderTotals();save();
+  const p=P();p.del.push(...p.rows.filter(r=>r.u||r.t.trim()).map(r=>r.id));
+  p.rows=[newRow()];sel.clear();renderRows();renderTotals();save();
 }
 function selectAll(){
   P().rows.forEach(r=>{if(amountOf(r.t)!=null)sel.add(r.id)});
@@ -531,6 +553,7 @@ function openMenu(){
   openSheet('Menu',[
     {label:'Saare mahine dekho',run:openMonths},
     {label:'Naya page banao',run:addPage},
+    {label:'Phone + laptop sync',hint:syncHint(),run:openSync},
     {label:'Backup download karo',run:exportData},
     {label:'Backup wapas lao',run:()=>$('#file').click()},
     {label:'Theme',hint:THEMES[S.theme],run:()=>{S.theme=S.theme==='auto'?'light':S.theme==='light'?'dark':'auto';applyTheme();save();toast('Theme: '+THEMES[S.theme])}},
@@ -543,7 +566,7 @@ function openHelp(){
     '<p>Line ke <b>aakhir ka number</b> amount ginta hai. <b>2x30</b> ya <b>20+30</b> bhi chalega. <b>#</b> se shuru karne par line note ban jati hai aur sum me nahi judti.</p>'+
     '<p>Line ke left ka <b>gola</b> dabao to wo sum ke liye chun li jati hai, neeche unka alag total dikhta hai.</p>'+
     '<p>Tab ke upar bana number us page ka total hai. Chune hue page ko dobara dabao to uske options khulte hain.</p>'+
-    '<p>Data sirf isi device ke browser me save hota hai. Dusre phone ya laptop par le jane ke liye <b>Backup download</b> karo aur wahan <b>Backup wapas lao</b>.</p>';
+    '<p>Data isi device ke browser me save hota hai. Phone aur laptop me ek hi data chahiye to Menu me <b>Phone + laptop sync</b> chalu karo. Bina sync ke le jana ho to <b>Backup download</b> karo aur wahan <b>Backup wapas lao</b>.</p>';
   openSheet('Kaise use karein',[d]);
 }
 
@@ -568,6 +591,166 @@ $('#file').addEventListener('change',async e=>{
   }catch(err){toast('Ye file sahi backup nahi lag rahi')}
 });
 
+/* ---------- sync (GitHub Gist) ---------- */
+// Data aapke GitHub account ke ek private Gist (kharcha.json) me rehta hai. Token sirf is device par, alag key me.
+// Merge: line id se milti hai, naya edit (u) jeetta hai, delete hui lines/pages del/gone me yaad rehte hain.
+const SKEY='kharcha.sync', API='https://api.github.com', GFILE='kharcha.json', GDESC='Kharcha sync (app data)';
+let SY=(()=>{try{return JSON.parse(localStorage.getItem(SKEY))||{}}catch(e){return {}}})();
+let syncing=false, again=false, syncT=null;
+const syncOn=()=>!!SY.token;
+function saveSY(){try{localStorage.setItem(SKEY,JSON.stringify(SY))}catch(e){}}
+
+const blankPage=p=>!p.rows.some(r=>r.t.trim());
+const union=(a,b)=>[...new Set([...a,...b])];
+// Remote ka order rakho, sirf local wale naye items unke pichhle saathi ke baad daalo.
+function mergeList(l,r,both,keepR){
+  const L=new Map(l.map(x=>[x.id,x])), R=new Set(r.map(x=>x.id));
+  const out=r.filter(x=>L.has(x.id)||keepR(x)).map(x=>L.has(x.id)?both(L.get(x.id),x):x);
+  l.forEach((x,i)=>{
+    if(R.has(x.id))return;
+    let at=0;
+    for(let j=i-1;j>=0;j--){const k=out.findIndex(y=>y.id===l[j].id);if(k>=0){at=k+1;break}}
+    out.splice(at,0,x);
+  });
+  return out;
+}
+function mergePage(l,r){
+  const del=union(l.del,r.del), D=new Set(del);
+  const rows=mergeList(l.rows.filter(x=>!D.has(x.id)),r.rows.filter(x=>!D.has(x.id)),(a,b)=>b.u>a.u?b:a,x=>x.u>0||!!x.t.trim());
+  const rn=r.nu>l.nu;
+  return {id:l.id,name:rn?r.name:l.name,nu:rn?r.nu:l.nu,rows:rows.length?rows:[newRow()],del};
+}
+function mergeMonth(l,r){
+  const gone=union(l.gone,r.gone), G=new Set(gone);
+  const rp=r.pages.filter(p=>!G.has(p.id)), rIds=new Set(rp.map(p=>p.id)), rNames=new Set(rp.map(p=>p.name));
+  // Dono device ne apne aap ek hi naam ka khali page banaya ho to ek hi rakho
+  const lp=l.pages.filter(p=>!G.has(p.id)&&(rIds.has(p.id)||!blankPage(p)||!rNames.has(p.name)));
+  const lNames=new Set(lp.map(p=>p.name));
+  let pages=mergeList(lp,rp,mergePage,p=>!blankPage(p)||!lNames.has(p.name));
+  if(!pages.length)pages=[newPage('Kharcha')];
+  return {pages,active:(pages.find(p=>p.id===l.active)||pages[0]).id,gone};
+}
+function mergeAll(l,r){
+  const months={};
+  for(const k of union(Object.keys(l.months),Object.keys(r.months))){
+    const a=l.months[k], b=r.months[k];
+    months[k]=a&&b?mergeMonth(a,b):a||b;
+  }
+  return {months,theme:l.theme};
+}
+// Gist me jane wala JSON, hamesha ek hi kram me. Kabhi na chhui khali lines aur active page nahi jate.
+const payload=s=>JSON.stringify({app:'kharcha',v:2,months:Object.fromEntries(Object.keys(s.months).sort().map(k=>{
+  const m=s.months[k];
+  return [k,{gone:[...m.gone].sort(),pages:m.pages.map(p=>({id:p.id,name:p.name,nu:p.nu,del:[...p.del].sort(),
+    rows:p.rows.filter(r=>r.u||r.t.trim()).map(r=>({id:r.id,t:r.t,u:r.u}))}))}];
+}))});
+
+async function gh(path,opt={}){
+  const res=await fetch(API+path,{...opt,cache:'no-store',headers:{
+    Authorization:'Bearer '+SY.token,Accept:'application/vnd.github+json',...(opt.body?{'Content-Type':'application/json'}:{})}});
+  if(res.status===401||res.status===403)throw new Error('auth');
+  if(!res.ok)throw new Error('http '+res.status);
+  return res.json();
+}
+async function findGist(){
+  for(let pg=1;pg<=10;pg++){
+    const list=await gh('/gists?per_page=100&page='+pg);
+    const g=list.find(g=>g.description===GDESC&&g.files&&g.files[GFILE]);
+    if(g)return g.id;
+    if(list.length<100)return null;
+  }
+  return null;
+}
+async function readGist(){
+  let g;
+  try{g=await gh('/gists/'+SY.gist)}catch(e){if(e.message==='http 404'){SY.gist=null;return null}throw e}
+  const f=g.files&&g.files[GFILE]; if(!f)return null;
+  const txt=f.truncated?await (await fetch(f.raw_url,{cache:'no-store'})).text():f.content;
+  return normalize(JSON.parse(txt));
+}
+function applyRemote(next){
+  const a=document.activeElement, d=a&&a.classList.contains('t')?a.closest('.row'):null;
+  const id=d&&d.dataset.id, pos=d&&a.selectionStart;
+  S=next;write();renderAll();
+  const nd=id&&rowDom(id);
+  if(nd){const i=nd.querySelector('input');i.focus();try{i.setSelectionRange(pos,pos)}catch(e){}}
+}
+function scheduleSync(ms){
+  if(!syncOn())return;
+  clearTimeout(syncT);syncT=setTimeout(()=>{syncT=null;sync()},ms);
+}
+async function sync(manual){
+  if(!syncOn())return;
+  if(syncing){again=true;return}
+  syncing=true;clearTimeout(syncT);syncT=null;
+  try{
+    if(!SY.gist)SY.gist=await findGist();
+    const remote=SY.gist?await readGist():null;
+    if(remote){
+      const next=mergeAll(S,remote);
+      if(payload(next)!==payload(S))applyRemote(next);
+    }
+    const body=payload(S);
+    if(!remote||body!==payload(remote)){
+      const files={[GFILE]:{content:body}};
+      if(SY.gist)await gh('/gists/'+SY.gist,{method:'PATCH',body:JSON.stringify({files})});
+      else SY.gist=(await gh('/gists',{method:'POST',body:JSON.stringify({description:GDESC,public:false,files})})).id;
+    }
+    SY.at=Date.now();SY.err='';saveSY();
+    if(manual)toast('Sync ho gaya');
+  }catch(e){
+    const auth=e.message==='auth', first=SY.err!==(auth?'auth':'net');
+    SY.err=auth?'auth':'net';saveSY();
+    if(manual||(auth&&first))toast(auth?'Sync: token galat hai ya expire ho gaya':navigator.onLine?'Sync nahi hua, thodi der me dobara koshish hogi':'Internet nahi hai, baad me sync hoga');
+  }finally{
+    syncing=false;
+    if(again){again=false;scheduleSync(800)}
+  }
+}
+function ago(t){
+  if(!t)return '';
+  const s=(Date.now()-t)/1000;
+  return s<60?'abhi':s<3600?Math.floor(s/60)+' min pehle':s<86400?Math.floor(s/3600)+' ghante pehle':new Date(t).toLocaleDateString('en-IN');
+}
+const syncHint=()=>!syncOn()?'Band':SY.err==='auth'?'Token dikkat':SY.err?'Ruka hua':'Chalu';
+async function connect(tok){
+  SY={token:tok};
+  try{await gh('/gists?per_page=1')}
+  catch(e){SY={};return toast(e.message==='auth'?'Ye token kaam nahi kar raha':'GitHub tak nahi pahunch paye, internet dekho')}
+  saveSY();closeSheet();toast('Sync chalu ho raha hai…');
+  await sync(true);
+}
+function openSync(){
+  const d=document.createElement('div');d.className='tips';
+  if(!syncOn()){
+    d.innerHTML='<p>Phone aur laptop me ek hi kharcha dikhane ke liye data aapke GitHub account ke ek <b>private Gist</b> me rakha jata hai. Har device par ek baar token daalna hota hai.</p>'+
+      '<p><b>1.</b> Neeche wala button dabao aur GitHub me login karo. Wahan sirf <b>gist</b> tick hoga. Expiration me <b>No expiration</b> chuno, phir <b>Generate token</b> dabao.</p>'+
+      '<p><b>2.</b> Jo token (<b>ghp_</b> se shuru) dikhe use copy karke yahan daalo. Dusre device par bhi yahi token daalna hai, isliye ise kahin sambhal ke rakho.</p>'+
+      '<a class="btn ghost" target="_blank" rel="noopener" href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Kharcha%20sync">GitHub par token banao</a>'+
+      '<label class="fl">Token<input type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ghp_…"></label>'+
+      '<button class="btn">Sync chalu karo</button>';
+    const inp=d.querySelector('input'), b=d.querySelector('button');
+    b.onclick=async()=>{
+      const t=inp.value.trim(); if(!t)return inp.focus();
+      b.disabled=true;b.textContent='Check ho raha hai…';
+      await connect(t);
+      b.disabled=false;b.textContent='Sync chalu karo';
+    };
+    return openSheet('Phone + laptop sync',[d]);
+  }
+  d.innerHTML='<p></p>';
+  d.firstChild.textContent=SY.err==='auth'?'Token kaam nahi kar raha. Sync band karke naya token daalo.':
+    SY.err?'Pichhli baar sync nahi hua (internet?). Apne aap dobara koshish hogi.':
+    'Sync chalu hai. Badlav kuch second me upload hote hain, aur app kholte hi dusre device ka data aa jata hai.';
+  openSheet('Phone + laptop sync',[d,
+    {label:'Abhi sync karo',hint:SY.at?'Pichhli: '+ago(SY.at):'',run:()=>sync(true)},
+    {label:'Is device par sync band karo',danger:true,run:()=>{
+      if(!confirm('Is device par sync band karein? Kharcha is device par aur Gist me dono jagah rahega.'))return;
+      SY={};saveSY();toast('Sync band ho gaya');
+    }}
+  ]);
+}
+
 /* ---------- theme, toast, boot ---------- */
 function applyTheme(){
   document.documentElement.dataset.theme=S.theme||'auto';
@@ -579,13 +762,20 @@ function toast(t){
   const el=$('#toast');el.textContent=t;el.classList.add('on');
   clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('on'),2200);
 }
-document.addEventListener('visibilitychange',()=>{if(document.hidden)save(true)});
-addEventListener('pagehide',()=>save(true));
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){write();if(syncT)sync()}
+  else if(Date.now()-(SY.at||0)>10000)sync();
+});
+addEventListener('pagehide',write);
+addEventListener('online',()=>sync());
+// Khula ho to har 30 second dusre device ke badlav le aao (likhte waqt nahi).
+setInterval(()=>{if(!document.hidden&&Date.now()-lastEdit>8000)sync()},30000);
 
 applyTheme();
 renderAll();
 if(matchMedia('(pointer:fine)').matches)focusRow(elSheet.querySelector('.row'));
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+sync();
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 })();
 </script>

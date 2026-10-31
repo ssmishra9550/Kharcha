@@ -12,8 +12,14 @@ Mahine aur page ke hisaab se kharcha likhne ki copy. Koi server ya database nahi
 
 ## Dhyan rakhne ki baatein
 
-- Data har device ke browser me alag save hota hai. Phone aur laptop apne aap sync nahi honge.
-  Ek se dusre me le jane ke liye app ke menu me **Backup download karo** aur dusri jagah **Backup wapas lao**.
+- Data har device ke browser me save hota hai. Phone aur laptop me ek hi data ke liye menu me **Phone + laptop sync** chalu karo:
+  1. https://github.com/settings/tokens/new?scopes=gist&description=Kharcha%20sync kholo, sirf **gist** tick rakho, Expiration **No expiration**, **Generate token**.
+  2. Token (`ghp_...`) copy karo, app me paste karke **Sync chalu karo**. Dusre device par bhi wahi token daalo.
+  3. Data aapke account ke ek private Gist (`kharcha.json`, "Kharcha sync (app data)") me rehta hai. Us Gist ko delete mat karna.
+  Badlav kuch second me upload hote hain. Dusre device par app kholne par (ya khuli app me 30 second ke andar) aa jate hain.
+- Token sirf usi device ke browser me rehta hai, backup file ya Gist me nahi jata. Kisi ke saath share mat karna.
+- Sync chalu ho to **Backup wapas lao** purane data ko hatata nahi, dono jud jate hain.
+- Bina sync ke le jana ho to menu me **Backup download karo** aur dusri jagah **Backup wapas lao**.
 - iPhone par Safari aur Home Screen wala app alag-alag storage rakhte hain. Safari me likha kharcha installed app me nahi dikhega,
   isliye app install karne ke baad usi me likhna shuru karo (ya Backup se le aao).
 - Browser ka data (site data) clear karoge to kharcha bhi chala jayega, isliye kabhi kabhi backup le lena.

@@ -1,6 +1,6 @@
 // Kharcha service worker: offline chalne ke liye.
 // App update karne par VERSION badal do taaki purana cache hat jaye.
-const VERSION = 'kharcha-v2';
+const VERSION = 'kharcha-v3';
 const ASSETS = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'];
 
 // cache:'reload' taaki browser ke HTTP cache se purani file na uthe.
