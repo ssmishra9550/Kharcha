@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Kharcha</title>
 <meta name="theme-color" content="#FBFCFE" id="tc">
-<meta name="description" content="Mahine ke hisaab se kharcha likhne ki copy">
+<meta name="description" content="A private monthly expense tracker">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -17,7 +17,7 @@
   --paper:#FBFCFE; --desk:#E6ECF7; --ink:#14213D; --muted:#66769A; --rule:#DAE5F5;
   --margin:#F0A0A7; --accent:#2747D8; --focus:rgba(39,71,216,.06); --hl:#FFF0A0;
   --bar:#14213D; --barfg:#F3F6FC; --barmut:#9FB0D3; --sheet:#FFFFFF;
-  --selbg:#FFE266; --selfg:#3B2F00; --danger:#C62F3B; --line:46px;
+  --selbg:#FFE266; --selfg:#3B2F00; --danger:#C62F3B; --maroon:#800000; --line:46px;
   --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
   color-scheme:light;
 }
@@ -26,14 +26,14 @@
     --paper:#111827; --desk:#0A0F1A; --ink:#E7ECF6; --muted:#8B98B5; --rule:#1E293C;
     --margin:#6E3441; --accent:#93A9FF; --focus:rgba(147,169,255,.08); --hl:#3B3512;
     --bar:#1C2740; --barfg:#EEF2FA; --barmut:#8FA0C4; --sheet:#1A2335;
-    --selbg:#5A4D14; --selfg:#FFE97A; --danger:#FF7B86; color-scheme:dark;
+    --selbg:#5A4D14; --selfg:#FFE97A; --danger:#FF7B86; --maroon:#E88C97; color-scheme:dark;
   }
 }
 :root[data-theme=dark]{
   --paper:#111827; --desk:#0A0F1A; --ink:#E7ECF6; --muted:#8B98B5; --rule:#1E293C;
   --margin:#6E3441; --accent:#93A9FF; --focus:rgba(147,169,255,.08); --hl:#3B3512;
   --bar:#1C2740; --barfg:#EEF2FA; --barmut:#8FA0C4; --sheet:#1A2335;
-  --selbg:#5A4D14; --selfg:#FFE97A; --danger:#FF7B86; color-scheme:dark;
+  --selbg:#5A4D14; --selfg:#FFE97A; --danger:#FF7B86; --maroon:#E88C97; color-scheme:dark;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;margin:0}
@@ -43,6 +43,7 @@ body{
   font-size:17px;-webkit-text-size-adjust:100%;
 }
 button{font:inherit;color:inherit;cursor:pointer}
+body.locked #app{display:none}
 #app{
   height:100dvh;max-width:720px;margin:0 auto;background:var(--paper);
   display:flex;flex-direction:column;position:relative;
@@ -50,7 +51,10 @@ button{font:inherit;color:inherit;cursor:pointer}
 }
 
 /* ---------- header ---------- */
-#top{padding-top:var(--safe-t);background:var(--paper);border-bottom:1px solid var(--rule);flex:none}
+#top{padding-top:var(--safe-t);background:var(--paper);border-bottom:1px solid var(--rule);flex:none;transition:background-color .25s}
+/* Budget states: the header recolours itself by redefining the colour tokens inside it. */
+#top.warn{--paper:#FFD54A;--ink:#3B2F00;--muted:#6B5A10;--rule:#E0B93A;--accent:#3B2F00;--focus:rgba(59,47,0,.12)}
+#top.over{--paper:#C62F3B;--ink:#FFFFFF;--muted:#FFE1E4;--rule:#E0646E;--accent:#FFFFFF;--focus:rgba(255,255,255,.18)}
 .mrow{display:flex;align-items:center;height:56px;padding:0 6px}
 .ic{width:44px;height:44px;border:0;background:none;border-radius:12px;display:grid;place-items:center;color:var(--ink)}
 .ic:active{background:var(--focus)}
@@ -61,11 +65,12 @@ button{font:inherit;color:inherit;cursor:pointer}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .title:active{background:var(--focus)}
+#sub{margin:-6px 0 4px;padding:0 12px;text-align:center;font-size:13.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #tabs{display:flex;gap:2px;overflow-x:auto;padding:0 8px;scrollbar-width:none;scroll-snap-type:x proximity}
 #tabs::-webkit-scrollbar{display:none}
 .tab{
   flex:none;height:42px;padding:0 12px;border:0;background:none;color:var(--muted);
-  font-size:15px;font-weight:600;border-bottom:2px solid transparent;white-space:nowrap;
+  font-size:15px;font-weight:700;border-bottom:2px solid transparent;white-space:nowrap;
   display:flex;align-items:center;gap:7px;
 }
 .tab .tt{font-weight:500;font-size:13px;font-variant-numeric:tabular-nums;opacity:.85}
@@ -93,14 +98,15 @@ button{font:inherit;color:inherit;cursor:pointer}
   content:"";position:absolute;left:23px;top:50%;width:5px;height:9px;margin-top:-6px;
   border:solid var(--paper);border-width:0 2px 2px 0;transform:rotate(45deg);
 }
+/* Expense names: normal-weight italic. Amounts: bold maroon. Both can be recoloured in Settings. */
 input.t{
-  width:100%;height:var(--line);border:0;outline:0;background:transparent;color:var(--ink);
-  font:inherit;font-size:17px;padding:0 8px 0 10px;caret-color:var(--accent);min-width:0;
+  width:100%;height:var(--line);border:0;outline:0;background:transparent;color:var(--namec,var(--ink));
+  font:inherit;font-size:var(--fs,17px);font-style:italic;font-weight:400;padding:0 8px 0 10px;caret-color:var(--accent);min-width:0;
 }
 input.t::placeholder{color:var(--muted);opacity:.7}
 .amt{
-  font-variant-numeric:tabular-nums;font-weight:650;font-size:16px;text-align:right;
-  padding-left:6px;color:var(--ink);white-space:nowrap;
+  font-variant-numeric:tabular-nums;font-weight:700;font-size:max(16px,var(--fs,17px));text-align:right;
+  padding-left:6px;color:var(--amtc,var(--maroon));white-space:nowrap;
 }
 .del{
   width:34px;height:var(--line);border:0;background:none;color:var(--muted);font-size:20px;line-height:1;
@@ -110,6 +116,7 @@ input.t::placeholder{color:var(--muted);opacity:.7}
 .hint{padding:14px 16px 0 68px;color:var(--muted);font-size:14.5px;line-height:1.6}
 .hint p{margin:0 0 6px}
 .hint code{font:inherit;font-weight:650;color:var(--ink)}
+.hint .btn{margin:10px 0 0;height:44px;font-size:15.5px}
 
 /* ---------- bottom ---------- */
 #selbar{
@@ -120,14 +127,14 @@ input.t::placeholder{color:var(--muted);opacity:.7}
 #selbar .sp{flex:1}
 #ss{font-size:19px;font-variant-numeric:tabular-nums}
 #selclr{border:1.5px solid currentColor;background:none;border-radius:999px;padding:4px 14px;font-size:14px;font-weight:600;color:inherit}
-#bar{
+#bar,.mfoot{
   flex:none;display:grid;grid-template-columns:1fr 1fr;gap:12px;background:var(--bar);color:var(--barfg);
   padding:12px 18px calc(12px + var(--safe-b));
 }
-#bar .c{min-width:0}
-#bar .c:last-child{text-align:right}
-#bar small{display:block;font-size:12.5px;color:var(--barmut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#bar b{display:block;font-size:25px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bar .c,.mfoot .c{min-width:0}
+#bar .c:last-child,.mfoot .c:last-child{text-align:right}
+#bar small,.mfoot small{display:block;font-size:12.5px;color:var(--barmut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#bar b,.mfoot b{display:block;font-size:25px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ---------- sheets ---------- */
 .ov{position:fixed;inset:0;z-index:20;background:rgba(8,12,24,.5);display:flex;align-items:flex-end;justify-content:center}
@@ -137,19 +144,19 @@ input.t::placeholder{color:var(--muted);opacity:.7}
   animation:up .18s ease-out;
 }
 @keyframes up{from{transform:translateY(24px);opacity:.4}to{transform:none;opacity:1}}
-.pn h2{margin:0;padding:14px 20px 8px;font-size:15px;font-weight:600;color:var(--muted)}
+.pn h2{margin:0;padding:14px 20px 8px;font-size:18px;font-weight:700;color:var(--ink)}
 .it{
   display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;min-height:54px;
   padding:0 20px;border:0;border-top:1px solid var(--rule);background:none;text-align:left;font-size:16.5px;color:var(--ink);
 }
 .it:active{background:var(--focus)}
-.it em{font-style:normal;color:var(--muted);font-size:14.5px;font-variant-numeric:tabular-nums}
+.it em{font-style:normal;color:var(--muted);font-size:14.5px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
 .it.danger{color:var(--danger)}
 .pick{padding:6px 20px 14px}
 .pick label{display:block;font-size:14px;color:var(--muted)}
 .pick input{
   display:block;width:100%;margin-top:6px;height:46px;border:1.5px solid var(--rule);border-radius:12px;
-  background:var(--paper);color:var(--ink);font:inherit;padding:0 12px;
+  background:var(--paper);color:var(--ink);font:inherit;font-size:17px;padding:0 12px;
 }
 .tips{padding:4px 20px 12px;font-size:15.5px;line-height:1.6}
 .tips p{margin:0 0 10px}
@@ -160,13 +167,55 @@ input.t::placeholder{color:var(--muted);opacity:.7}
 }
 .btn.ghost{background:none;color:var(--accent);border:1.5px solid var(--accent)}
 .btn:disabled{opacity:.6}
+.lnk{border:0;background:none;color:var(--accent);font-size:15.5px;min-height:44px;padding:0 8px;text-decoration:underline}
 .fl{display:block;margin-top:12px;font-size:14px;color:var(--muted)}
 .fl input{
-  display:block;width:100%;margin-top:6px;height:46px;border:1.5px solid var(--rule);border-radius:12px;
+  display:block;width:100%;margin-top:6px;height:48px;border:1.5px solid var(--rule);border-radius:12px;
   background:var(--paper);color:var(--ink);font:inherit;font-size:17px;padding:0 12px;
 }
+
+/* settings */
+.set{padding:0 20px 12px}
+.sr{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:54px;border-top:1px solid var(--rule)}
+.sr label{font-size:16px}
+.sr.col{flex-direction:column;align-items:stretch;gap:0;padding:10px 0 12px}
+.sr.col label{margin-bottom:6px}
+.sr.col input{height:46px;border:1.5px solid var(--rule);border-radius:12px;background:var(--paper);color:var(--ink);font:inherit;font-size:17px;padding:0 12px;width:100%}
+.seg{display:flex;border:1.5px solid var(--rule);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:none;padding:0 12px;height:40px;font-size:15px;color:var(--ink)}
+.seg button.on{background:var(--accent);color:var(--paper);font-weight:650}
+.cw{display:flex;align-items:center;gap:4px}
+.cw input[type=color]{width:46px;height:38px;padding:2px;border:1.5px solid var(--rule);border-radius:10px;background:var(--paper)}
+.cw .lnk{font-size:14.5px;padding:0 6px}
+
+/* regular expenses screen */
+.scr{position:fixed;inset:0;z-index:25;background:var(--desk);display:flex;justify-content:center}
+.scr .in{width:min(720px,100%);height:100dvh;background:var(--paper);display:flex;flex-direction:column}
+.sh{display:flex;align-items:center;height:calc(56px + var(--safe-t));padding:var(--safe-t) 6px 0;border-bottom:1px solid var(--rule);flex:none}
+.sh h1{flex:1;text-align:center;margin:0;font-size:21px;font-weight:700;letter-spacing:-.015em}
+.sh .sp{width:44px}
+.mbody{flex:1;overflow-y:auto;overscroll-behavior:contain}
+.mnote{margin:0;padding:12px 16px 8px;font-size:14.5px;line-height:1.55;color:var(--muted)}
+.mr{display:grid;grid-template-columns:minmax(0,1fr) 112px 40px;gap:8px;align-items:center;padding:6px 6px 6px 16px;border-bottom:1px solid var(--rule)}
+.mr input{width:100%;height:46px;border:1.5px solid var(--rule);border-radius:10px;background:var(--paper);font:inherit;font-size:17px;padding:0 10px;min-width:0;color:var(--ink)}
+.mr input.mn{font-style:italic;font-weight:400;color:var(--namec,var(--ink))}
+.mr input.ma{font-weight:700;text-align:right;color:var(--amtc,var(--maroon))}
+.mr .x{width:40px;height:46px;border:0;background:none;color:var(--muted);font-size:22px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px 4px}
+.chips button{border:1.5px solid var(--rule);background:none;border-radius:999px;padding:0 14px;min-height:40px;font-size:15px;color:var(--ink)}
+.mact{padding:6px 16px 24px}
+
+/* sign in */
+#auth{position:fixed;inset:0;z-index:40;background:var(--desk);overflow:auto;display:flex;justify-content:center;align-items:flex-start;padding:calc(var(--safe-t) + 8vh) 16px 32px}
+.ac{width:min(420px,100%);background:var(--paper);border-radius:18px;padding:28px 22px 18px;box-shadow:0 0 0 1px var(--rule)}
+.ac h1{margin:0;font-size:30px;font-weight:700;letter-spacing:-.02em;text-align:center}
+.ac .as{margin:6px 0 8px;text-align:center;color:var(--muted);font-size:15px}
+#aerr{min-height:22px;margin-top:10px;font-size:14.5px;line-height:1.4;color:var(--danger)}
+#aerr.ok{color:var(--accent)}
+.ac .lnk{display:block;margin:8px auto 0}
+
 #toast{
-  position:fixed;left:50%;bottom:calc(110px + var(--safe-b));transform:translate(-50%,10px);z-index:30;
+  position:fixed;left:50%;bottom:calc(110px + var(--safe-b));transform:translate(-50%,10px);z-index:60;
   background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-size:14.5px;
   opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;max-width:90vw;text-align:center;
 }
@@ -181,20 +230,21 @@ input.t:focus-visible{outline:0}
 <div id="app">
   <header id="top">
     <div class="mrow">
-      <button class="ic" id="prev" aria-label="Pichhla mahina"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
-      <button class="title" id="title" aria-label="Mahina chuno"></button>
-      <button class="ic" id="next" aria-label="Agla mahina"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+      <button class="ic" id="prev" aria-label="Previous month"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <button class="title" id="title" aria-label="Choose month"></button>
+      <button class="ic" id="next" aria-label="Next month"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
       <button class="ic" id="menu" aria-label="Menu"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/></svg></button>
     </div>
+    <div id="sub"></div>
     <nav id="tabs" aria-label="Pages"></nav>
   </header>
 
   <main id="paper"><div id="sheet"></div></main>
 
-  <div id="selbar"><span id="sn"></span><span class="sp"></span><b id="ss"></b><button id="selclr">Hatao</button></div>
+  <div id="selbar"><span id="sn"></span><span class="sp"></span><b id="ss"></b><button id="selclr">Clear</button></div>
   <footer id="bar">
-    <div class="c"><small id="pl">Page ka total</small><b id="pt">₹0</b></div>
-    <div class="c"><small>Poore mahine ka total</small><b id="mt">₹0</b></div>
+    <div class="c"><small id="pl">Page total</small><b id="pt">₹0</b></div>
+    <div class="c"><small>Month total</small><b id="mt">₹0</b></div>
   </footer>
 </div>
 <input type="file" id="file" accept=".json,application/json" hidden>
@@ -203,20 +253,26 @@ input.t:focus-visible{outline:0}
 <script>
 (()=>{
 'use strict';
+/* ---------- cloud configuration ----------
+   Paste your Supabase Project URL and publishable (anon) key here.
+   While both are empty the app runs in local mode: no sign-in and no cloud sync. */
+const CFG={url:'',key:''};
+const CLOUD=!!(CFG.url&&CFG.key);
+
 const $=s=>document.querySelector(s);
-const KEY='kharcha.v1';
+const KEY='kharcha.v1', OWNER='kharcha.owner', AKEY='kharcha.auth';
 const uid=()=>Math.random().toString(36).slice(2,9);
 const fmt=new Intl.NumberFormat('en-IN',{maximumFractionDigits:2});
 const rnd=n=>Math.round(n*100)/100;
 const money=n=>'₹'+fmt.format(rnd(n));
 const mk=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-// u = aakhri edit ka time (sync me naya wala jeetta hai). Khali nayi line ka u 0 rehta hai.
+// u = time of the last edit (the newer edit wins when syncing). A blank new line has u = 0.
 const newRow=(t='')=>({id:uid(),t,u:t?Date.now():0});
 const newPage=(name,rows=[newRow()])=>({id:uid(),name,nu:0,rows,del:[]});
 const titleOf=k=>{const [y,m]=k.split('-').map(Number);return new Date(y,m-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'})};
 
 /* ---------- amount parsing ---------- */
-// Line ke aakhir ka number = amount. "20+30" ya "2x30" bhi chalta hai. "#" se shuru = note.
+// The last number on a line is its amount. "20+30" and "2x30" also work. A line starting with "#" is a note.
 const AMT=/(?:₹\s*|rs\.?\s*)?(\d[\d,]*(?:\.\d+)?(?:\s*[+*x×]\s*(?:₹\s*)?\d[\d,]*(?:\.\d+)?)*)\s*(?:\/-|-|₹|rs\.?|rupaye|rupay|rupees)?\s*$/i;
 function amountOf(t){
   t=(t||'').trim();
@@ -231,36 +287,52 @@ function amountOf(t){
 }
 
 /* ---------- storage ---------- */
+const THEMES={auto:'Automatic',light:'Light',dark:'Dark'};
+const SIZES={s:'16px',m:'17px',l:'19px'};
+const hex=c=>/^#[0-9a-f]{6}$/i.test(c)?c.toLowerCase():'';
+const idList=a=>Array.isArray(a)?a.filter(x=>typeof x==='string'):[];
+function blankState(){
+  return {months:{},master:[],mdel:[],prefs:{theme:'auto',nameColor:'',amtColor:'',size:'m',budget:0,warn:87.5,pu:0}};
+}
+// Accepts every older shape (no u / del / gone / master / prefs) and fills in defaults, so existing data keeps working.
 function normalize(j){
-  const out={months:{},theme:'auto'};
+  const out=blankState();
   for(const [k,m] of Object.entries(j.months||{})){
     if(!/^\d{4}-\d{2}$/.test(k)||!m||!Array.isArray(m.pages))continue;
-    // Purane data me u/nu/del/gone nahi hote, unhe default se bhar do.
-    const ids=a=>Array.isArray(a)?a.filter(x=>typeof x==='string'):[];
     const pages=m.pages.map(p=>({
-      id:p.id||uid(),name:String(p.name||'Kharcha').slice(0,30),nu:+p.nu||0,
+      id:p.id||uid(),name:String(p.name||'Expenses').slice(0,30),nu:+p.nu||0,
       rows:(Array.isArray(p.rows)&&p.rows.length?p.rows:[newRow()]).map(r=>({id:r.id||uid(),t:String(r.t||''),u:+r.u||0})),
-      del:ids(p.del)
+      del:idList(p.del)
     }));
     if(!pages.length)continue;
-    out.months[k]={pages,active:(pages.find(p=>p.id===m.active)||pages[0]).id,gone:ids(m.gone)};
+    out.months[k]={pages,active:(pages.find(p=>p.id===m.active)||pages[0]).id,gone:idList(m.gone)};
   }
-  if(['auto','light','dark'].includes(j.theme))out.theme=j.theme;
+  out.master=(Array.isArray(j.master)?j.master:[]).filter(x=>x&&typeof x==='object')
+    .map(x=>({id:x.id||uid(),name:String(x.name||'').slice(0,40),amt:Math.max(0,+x.amt||0),u:+x.u||0}));
+  out.mdel=idList(j.mdel);
+  const p=j.prefs&&typeof j.prefs==='object'?j.prefs:{}, T=['auto','light','dark'];
+  out.prefs={
+    theme:T.includes(p.theme)?p.theme:T.includes(j.theme)?j.theme:'auto',
+    nameColor:hex(p.nameColor),amtColor:hex(p.amtColor),
+    size:SIZES[p.size]?p.size:'m',budget:Math.max(0,+p.budget||0),
+    warn:Math.min(100,Math.max(1,+p.warn||87.5)),pu:+p.pu||0
+  };
   return out;
 }
 function load(){
   try{const j=JSON.parse(localStorage.getItem(KEY));if(j&&typeof j.months==='object')return normalize(j)}catch(e){}
-  return {months:{},theme:'auto'};
+  return blankState();
 }
-let S=load(), saveT, lastEdit=0;
+let S=load(), saveT, lastEdit=0, editVer=0;
 function write(){
   clearTimeout(saveT);
-  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Save nahi hua. Browser storage band ya full hai')}
+  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Could not save. Browser storage is disabled or full')}
 }
 function save(now){
   clearTimeout(saveT);
   now?write():saveT=setTimeout(write,250);
-  lastEdit=Date.now();scheduleSync(4000);
+  lastEdit=Date.now();editVer++;
+  if(syncOn()){SY.dirty=true;saveSY();scheduleSync(4000)}
 }
 
 /* ---------- model helpers ---------- */
@@ -270,7 +342,7 @@ function monthOf(k){
   if(!S.months[k]){
     const keys=Object.keys(S.months).sort();
     const prev=keys.filter(x=>x<k).pop()||keys[0];
-    const names=prev?S.months[prev].pages.map(p=>p.name):['Kharcha'];
+    const names=prev?S.months[prev].pages.map(p=>p.name):['Expenses'];
     const pages=names.map(n=>newPage(n));
     S.months[k]={pages,active:pages[0].id,gone:[]};
   }
@@ -281,9 +353,14 @@ const P=()=>{const m=M();return m.pages.find(p=>p.id===m.active)||m.pages[0]};
 const pageTotal=p=>p.rows.reduce((s,r)=>s+(amountOf(r.t)||0),0);
 const monthTotal=m=>m.pages.reduce((s,p)=>s+pageTotal(p),0);
 const hasData=m=>m.pages.some(p=>p.rows.some(r=>r.t.trim()));
+const hasAnyData=()=>S.master.some(x=>x.name.trim())||Object.values(S.months).some(hasData);
+const masterTotal=()=>S.master.reduce((s,x)=>s+(x.name.trim()?x.amt:0),0);
+// Budget = the regular expenses total, unless a manual budget is set in Settings.
+const budget=()=>S.prefs.budget>0?S.prefs.budget:masterTotal();
 
 /* ---------- render ---------- */
 const elTabs=$('#tabs'), elSheet=$('#sheet');
+let budgetState='ok';
 
 function renderTitle(){$('#title').textContent=titleOf(cur)}
 
@@ -300,7 +377,7 @@ function renderTabs(){
   });
   const add=document.createElement('button');
   add.className='tab add';add.dataset.act='addpage';add.textContent='+';
-  add.setAttribute('aria-label','Naya page');
+  add.setAttribute('aria-label','New page');
   elTabs.appendChild(add);
   updateTabTotals();
   elTabs.querySelector('.on')?.scrollIntoView({inline:'center',block:'nearest'});
@@ -318,13 +395,13 @@ function rowEl(r,single){
   const d=document.createElement('div');
   d.className='row'+(sel.has(r.id)?' sel':'');
   d.dataset.id=r.id;
-  d.innerHTML='<button class="mark" tabindex="-1" aria-label="Sum ke liye chuno" data-act="mark"></button>'+
-    '<input class="t" type="text" enterkeyhint="next" autocomplete="off" autocapitalize="sentences" autocorrect="off" spellcheck="false" aria-label="Kharcha likho">'+
+  d.innerHTML='<button class="mark" tabindex="-1" aria-label="Select line to add to sum" data-act="mark"></button>'+
+    '<input class="t" type="text" enterkeyhint="next" autocomplete="off" autocapitalize="sentences" autocorrect="off" spellcheck="false" aria-label="Expense">'+
     '<span class="amt"></span>'+
-    '<button class="del" tabindex="-1" aria-label="Line hatao" data-act="del">×</button>';
+    '<button class="del" tabindex="-1" aria-label="Delete line" data-act="del">×</button>';
   const i=d.querySelector('input');
   i.value=r.t;
-  if(single)i.placeholder='Yahan likho, jaise: Doodh 60';
+  if(single)i.placeholder='Type an expense, e.g. Milk 60';
   setAmt(d,r.t);
   return d;
 }
@@ -339,8 +416,9 @@ function renderRows(){
   p.rows.forEach(r=>elSheet.appendChild(rowEl(r,p.rows.length===1)));
   const h=document.createElement('div');
   h.className='hint';h.id='hint';
-  h.innerHTML='<p>Likho <code>Doodh 60</code> aur Enter dabao, nayi line aa jayegi.</p>'+
-    '<p><code>2x30</code> ya <code>20+30</code> bhi chalega. <code>#</code> se shuru karo to note ban jata hai.</p>';
+  h.innerHTML='<p>Type an expense such as <code>Milk 60</code> and press Enter to start a new line.</p>'+
+    '<p><code>2x30</code> and <code>20+30</code> also work. Start a line with <code>#</code> to make it a note that is not added to the total.</p>'+
+    (S.master.some(x=>x.name.trim()&&x.amt>0)?'<button class="btn ghost" data-do="regulars">Add my regular expenses</button>':'');
   elSheet.appendChild(h);
   updateHint();
 }
@@ -348,18 +426,36 @@ function updateHint(){
   const h=$('#hint'); if(h)h.hidden=!P().rows.every(r=>!r.t.trim());
 }
 
+// Header colour follows spending: default below the warning level, yellow from the warning level up to the budget, red above it.
+function renderBudget(){
+  const b=budget(), t=rnd(monthTotal(M()));
+  const st=b<=0?'ok':t>rnd(b)?'over':t>=b*S.prefs.warn/100?'warn':'ok';
+  budgetState=st;
+  const top=$('#top');
+  top.classList.toggle('warn',st==='warn');
+  top.classList.toggle('over',st==='over');
+  $('#sub').textContent=b>0
+    ?money(t)+' of '+money(b)+' budget'+(st==='warn'?' · Nearing the limit':st==='over'?' · Over budget':'')
+    :'Set a monthly budget under Regular Expenses';
+  syncThemeColor();
+}
+function syncThemeColor(){
+  $('#tc').content=budgetState==='over'?'#C62F3B':budgetState==='warn'?'#FFD54A':getComputedStyle(document.documentElement).getPropertyValue('--paper').trim();
+}
+
 function renderTotals(){
   const m=M(), p=P();
-  $('#pl').textContent=p.name+' ka total';
+  $('#pl').textContent=p.name+' total';
   $('#pt').textContent=money(pageTotal(p));
   $('#mt').textContent=money(monthTotal(m));
   let n=0,s=0;
   p.rows.forEach(r=>{if(sel.has(r.id)){n++;s+=amountOf(r.t)||0}});
   $('#selbar').classList.toggle('on',n>0);
-  $('#sn').textContent=n+(n===1?' line chuni':' lines chuni');
+  $('#sn').textContent=n+(n===1?' line selected':' lines selected');
   $('#ss').textContent=money(s);
   updateTabTotals();
   updateHint();
+  renderBudget();
 }
 function renderAll(){renderTitle();renderTabs();renderRows();renderTotals()}
 
@@ -437,6 +533,7 @@ elSheet.addEventListener('focusin',e=>{
 });
 elSheet.addEventListener('pointerdown',e=>{if(e.target.closest('.del'))e.preventDefault()});
 elSheet.addEventListener('click',e=>{
+  if(e.target.closest('[data-do=regulars]'))return addRegulars();
   const b=e.target.closest('[data-act]'), d=e.target.closest('.row');
   if(b&&d){
     if(b.dataset.act==='mark')toggleSel(d.dataset.id,d);
@@ -471,24 +568,24 @@ elTabs.addEventListener('click',e=>{
 });
 
 function addPage(){
-  const n=prompt('Naye page ka naam (jaise: Ghar, Bazaar, Travel)');
+  const n=prompt('Name for the new page (for example: Home, Market, Travel)');
   if(!n||!n.trim())return;
   const m=M(), p=newPage(n.trim().slice(0,30));
   m.pages.push(p);m.active=p.id;sel.clear();renderAll();save();
 }
 function renamePage(){
-  const p=P(), n=prompt('Page ka naya naam',p.name);
+  const p=P(), n=prompt('New page name',p.name);
   if(!n||!n.trim())return;
   p.name=n.trim().slice(0,30);p.nu=Date.now();renderTabs();renderTotals();save();
 }
 function deletePage(){
   const m=M(), p=P();
-  if(m.pages.length<2)return toast('Kam se kam ek page rehna chahiye');
-  if(!confirm('"'+p.name+'" page aur uski saari lines delete karein?'))return;
+  if(m.pages.length<2)return toast('At least one page must remain');
+  if(!confirm('Delete the page "'+p.name+'" and all of its lines?'))return;
   m.gone.push(p.id);m.pages=m.pages.filter(x=>x!==p);m.active=m.pages[0].id;sel.clear();renderAll();save();
 }
 function clearPage(){
-  if(!confirm('Is page ki saari lines hata dein?'))return;
+  if(!confirm('Remove all lines on this page?'))return;
   const p=P();p.del.push(...p.rows.filter(r=>r.u||r.t.trim()).map(r=>r.id));
   p.rows=[newRow()];sel.clear();renderRows();renderTotals();save();
 }
@@ -500,8 +597,25 @@ function selectAll(){
 function copyPage(){
   const p=P();
   const txt=titleOf(cur)+' / '+p.name+'\n\n'+p.rows.filter(r=>r.t.trim()).map(r=>r.t.trim()).join('\n')+'\n\nTotal: '+money(pageTotal(p));
-  if(navigator.clipboard)navigator.clipboard.writeText(txt).then(()=>toast('Copy ho gaya'),()=>toast('Copy nahi ho paya'));
-  else toast('Is browser me copy nahi ho paya');
+  if(navigator.clipboard)navigator.clipboard.writeText(txt).then(()=>toast('Copied'),()=>toast('Could not copy'));
+  else toast('Copying is not supported in this browser');
+}
+// Adds each regular expense to the current page unless this month already has a line starting with its name.
+function addRegulars(){
+  const items=S.master.filter(x=>x.name.trim()&&x.amt>0);
+  if(!items.length){toast('Add your regular expenses first');return openMaster()}
+  const have=M().pages.flatMap(p=>p.rows.map(r=>r.t.trim().toLowerCase()));
+  const fresh=items.filter(x=>{
+    const n=x.name.trim().toLowerCase();
+    return !have.some(t=>t===n||(t.startsWith(n)&&/^[\s:\-–]/.test(t.slice(n.length))));
+  });
+  if(!fresh.length)return toast('All regular expenses are already added this month');
+  const p=P();
+  while(p.rows.length&&!p.rows[p.rows.length-1].t.trim())p.rows.pop();
+  fresh.forEach(x=>p.rows.push(newRow(x.name.trim()+': '+rnd(x.amt))));
+  p.rows.push(newRow());
+  sel.clear();renderRows();renderTotals();save();
+  toast('Added '+fresh.length+(fresh.length===1?' regular expense':' regular expenses'));
 }
 
 /* ---------- sheets ---------- */
@@ -525,49 +639,183 @@ function openSheet(title,items){
   ov.addEventListener('click',e=>{if(e.target===ov)closeSheet()});
   document.body.appendChild(ov);
 }
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  if($('#ov'))closeSheet();else if($('#master'))closeMaster();
+});
 
 function openMonths(){
   const wrap=document.createElement('div');wrap.className='pick';
-  wrap.innerHTML='<label>Koi bhi mahina chuno<input type="month"></label>';
+  wrap.innerHTML='<label>Choose any month<input type="month"></label>';
   const inp=wrap.querySelector('input');inp.value=cur;
   inp.onchange=()=>{if(inp.value){closeSheet();goMonth(inp.value)}};
   const now=mk(new Date());
-  const items=[wrap,{label:'Is mahine par jao',hint:titleOf(now),run:()=>goMonth(now)}];
+  const items=[wrap,{label:'Go to this month',hint:titleOf(now),run:()=>goMonth(now)}];
   Object.keys(S.months).filter(k=>hasData(S.months[k])).sort().reverse().forEach(k=>{
     items.push({label:titleOf(k),hint:money(monthTotal(S.months[k])),run:()=>goMonth(k)});
   });
-  openSheet('Saare mahine',items);
+  openSheet('All months',items);
 }
 function openPageMenu(){
   openSheet(P().name,[
-    {label:'Page ka naam badlo',run:renamePage},
-    {label:'Saari lines chuno (sum ke liye)',run:selectAll},
-    {label:'Page ko text ki tarah copy karo',run:copyPage},
-    {label:'Page ki saari lines hatao',run:clearPage,danger:true},
-    {label:'Page delete karo',run:deletePage,danger:true}
+    {label:'Rename page',run:renamePage},
+    {label:'Select all lines (for sum)',run:selectAll},
+    {label:'Copy page as text',run:copyPage},
+    {label:'Clear all lines on this page',run:clearPage,danger:true},
+    {label:'Delete page',run:deletePage,danger:true}
   ]);
 }
-const THEMES={auto:'Apne aap',light:'Light',dark:'Dark'};
 function openMenu(){
-  openSheet('Menu',[
-    {label:'Saare mahine dekho',run:openMonths},
-    {label:'Naya page banao',run:addPage},
-    {label:'Phone + laptop sync',hint:syncHint(),run:openSync},
-    {label:'Backup download karo',run:exportData},
-    {label:'Backup wapas lao',run:()=>$('#file').click()},
-    {label:'Theme',hint:THEMES[S.theme],run:()=>{S.theme=S.theme==='auto'?'light':S.theme==='light'?'dark':'auto';applyTheme();save();toast('Theme: '+THEMES[S.theme])}},
-    {label:'Kaise use karein',run:openHelp}
-  ]);
+  const items=[
+    {label:'All months',run:openMonths},
+    {label:'Regular expenses',hint:masterTotal()?money(masterTotal()):'',run:openMaster},
+    {label:'Add regular expenses to this page',run:addRegulars},
+    {label:'New page',run:addPage},
+    {label:'Settings',run:openSettings},
+    {label:'Download backup',run:exportData},
+    {label:'Restore backup',run:()=>$('#file').click()}
+  ];
+  if(CLOUD)items.push({label:'Account',hint:SY.session?SY.session.user.email:'',run:openAccount});
+  items.push({label:'How to use',run:openHelp});
+  openSheet('Menu',items);
 }
 function openHelp(){
   const d=document.createElement('div');d.className='tips';
-  d.innerHTML='<p><b>Enter</b> dabao to nayi line. Khali line me <b>Backspace</b> dabao to line hat jati hai (ya line par dabne par dikhne wala × dabao).</p>'+
-    '<p>Line ke <b>aakhir ka number</b> amount ginta hai. <b>2x30</b> ya <b>20+30</b> bhi chalega. <b>#</b> se shuru karne par line note ban jati hai aur sum me nahi judti.</p>'+
-    '<p>Line ke left ka <b>gola</b> dabao to wo sum ke liye chun li jati hai, neeche unka alag total dikhta hai.</p>'+
-    '<p>Tab ke upar bana number us page ka total hai. Chune hue page ko dobara dabao to uske options khulte hain.</p>'+
-    '<p>Data isi device ke browser me save hota hai. Phone aur laptop me ek hi data chahiye to Menu me <b>Phone + laptop sync</b> chalu karo. Bina sync ke le jana ho to <b>Backup download</b> karo aur wahan <b>Backup wapas lao</b>.</p>';
-  openSheet('Kaise use karein',[d]);
+  d.innerHTML='<p>Press <b>Enter</b> for a new line. Press <b>Backspace</b> on an empty line to remove it, or tap the <b>×</b> shown while a line is selected.</p>'+
+    '<p>The <b>last number</b> on a line is its amount. <b>2x30</b> and <b>20+30</b> also work. A line that starts with <b>#</b> is a note and is not added to the total.</p>'+
+    '<p>Tap the <b>circle</b> to the left of a line to include it in a separate sum, shown at the bottom.</p>'+
+    '<p>The number on each tab is that page\'s total. Tap the selected tab again to open its options.</p>'+
+    '<p>Under <b>Regular expenses</b> list the bills you pay every month. Their total becomes your monthly budget, and the header turns <b>yellow</b> when spending nears it and <b>red</b> when it goes over.</p>'+
+    (CLOUD?'<p>Your data is private to your account and syncs between your devices when you sign in.</p>'
+      :'<p>Your data is saved in this browser only. Use <b>Download backup</b> and <b>Restore backup</b> to move it to another device.</p>');
+  openSheet('How to use',[d]);
+}
+
+/* ---------- regular expenses screen ---------- */
+let masterUI=null;
+const SUGGEST=['Mobile Recharge','Internet Bill','Rent','Electricity Bill','EMI','Subscriptions','Other Regular Expenses'];
+function openMaster(){
+  closeSheet();
+  if($('#master'))return;
+  const scr=document.createElement('div');scr.className='scr';scr.id='master';
+  scr.innerHTML='<div class="in" role="dialog" aria-label="Regular expenses">'+
+    '<div class="sh"><button class="ic" id="mback" aria-label="Back"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button><h1>Regular Expenses</h1><span class="sp"></span></div>'+
+    '<div class="mbody"><p class="mnote">List the bills and payments you make every month. Their total is your monthly budget, unless you set one in Settings.</p>'+
+    '<div id="mlist"></div><div class="chips" id="mchips"></div>'+
+    '<div class="mact"><button class="btn ghost" id="madd">+ Add expense</button></div></div>'+
+    '<div class="mfoot"><div class="c"><small>Regular expenses</small><b id="mcount"></b></div><div class="c"><small>Monthly budget</small><b id="mtotal"></b></div></div></div>';
+  document.body.appendChild(scr);
+  const list=scr.querySelector('#mlist'), chips=scr.querySelector('#mchips');
+  const item=id=>S.master.find(x=>x.id===id);
+  function totals(){
+    scr.querySelector('#mcount').textContent=S.master.filter(x=>x.name.trim()).length;
+    scr.querySelector('#mtotal').textContent=money(budget());
+  }
+  function draw(){
+    list.innerHTML='';
+    S.master.forEach(x=>{
+      const r=document.createElement('div');r.className='mr';r.dataset.id=x.id;
+      r.innerHTML='<input class="mn" type="text" placeholder="Expense name" maxlength="40" autocomplete="off" autocapitalize="words" spellcheck="false" aria-label="Expense name">'+
+        '<input class="ma" type="text" inputmode="decimal" placeholder="Amount" autocomplete="off" aria-label="Amount in rupees">'+
+        '<button class="x" aria-label="Delete expense">×</button>';
+      r.querySelector('.mn').value=x.name;
+      r.querySelector('.ma').value=x.amt?String(x.amt):'';
+      list.appendChild(r);
+    });
+    chips.innerHTML='';
+    SUGGEST.filter(n=>!S.master.some(x=>x.name.trim().toLowerCase()===n.toLowerCase())).forEach(n=>{
+      const b=document.createElement('button');b.type='button';b.textContent='+ '+n;b.dataset.name=n;chips.appendChild(b);
+    });
+    totals();
+  }
+  function add(name=''){
+    const x={id:uid(),name,amt:0,u:name?Date.now():0};
+    S.master.push(x);draw();
+    const r=list.querySelector('.mr[data-id="'+x.id+'"]');
+    (name?r.querySelector('.ma'):r.querySelector('.mn')).focus();
+    if(name)save();
+    r.scrollIntoView({block:'nearest'});
+  }
+  list.addEventListener('input',e=>{
+    const r=e.target.closest('.mr'), x=r&&item(r.dataset.id); if(!x)return;
+    if(e.target.classList.contains('mn'))x.name=e.target.value;
+    else x.amt=Math.max(0,parseFloat(e.target.value.replace(/,/g,''))||0);
+    x.u=Date.now();totals();renderBudget();save();
+  });
+  list.addEventListener('keydown',e=>{
+    if(e.key!=='Enter'||e.isComposing)return;
+    e.preventDefault();
+    const r=e.target.closest('.mr');
+    if(e.target.classList.contains('mn'))r.querySelector('.ma').focus();
+    else if(item(r.dataset.id).name.trim())add();
+  });
+  list.addEventListener('click',e=>{
+    const b=e.target.closest('.x'); if(!b)return;
+    const id=b.closest('.mr').dataset.id, x=item(id); if(!x)return;
+    if(x.u||x.name.trim())S.mdel.push(id);
+    S.master=S.master.filter(y=>y.id!==id);
+    draw();renderBudget();save();
+  });
+  chips.addEventListener('click',e=>{const b=e.target.closest('button');if(b)add(b.dataset.name)});
+  scr.querySelector('#madd').onclick=()=>add();
+  scr.querySelector('#mback').onclick=closeMaster;
+  masterUI={refresh(){if(!scr.contains(document.activeElement))draw()}};
+  draw();
+  if(!S.master.length)chips.scrollIntoView({block:'nearest'});
+}
+function closeMaster(){
+  const scr=$('#master'); if(!scr)return;
+  S.master=S.master.filter(x=>{
+    if(x.name.trim())return true;
+    if(x.u)S.mdel.push(x.id);
+    return false;
+  });
+  scr.remove();masterUI=null;
+  renderRows();renderTotals();save();
+}
+
+/* ---------- settings ---------- */
+function applyPrefs(){
+  const p=S.prefs, root=document.documentElement;
+  root.dataset.theme=p.theme;
+  p.nameColor?root.style.setProperty('--namec',p.nameColor):root.style.removeProperty('--namec');
+  p.amtColor?root.style.setProperty('--amtc',p.amtColor):root.style.removeProperty('--amtc');
+  root.style.setProperty('--fs',SIZES[p.size]);
+  requestAnimationFrame(syncThemeColor);
+}
+function setPref(k,v){
+  S.prefs[k]=v;S.prefs.pu=Date.now();
+  applyPrefs();if(k==='budget'||k==='warn'){renderBudget();masterUI&&masterUI.refresh()}
+  save();
+}
+function openSettings(){
+  const p=S.prefs, cs=getComputedStyle(document.documentElement);
+  const eff=(v,name)=>{const c=v||cs.getPropertyValue(name).trim();return hex(c)||'#000000'};
+  const d=document.createElement('div');d.className='set';
+  d.innerHTML=
+    '<div class="sr"><label>Theme</label><div class="seg" data-k="theme"><button data-v="auto">Auto</button><button data-v="light">Light</button><button data-v="dark">Dark</button></div></div>'+
+    '<div class="sr"><label>Text size</label><div class="seg" data-k="size"><button data-v="s">Small</button><button data-v="m">Medium</button><button data-v="l">Large</button></div></div>'+
+    '<div class="sr"><label for="pn">Expense name color</label><span class="cw"><input type="color" id="pn"><button class="lnk" data-reset="nameColor">Default</button></span></div>'+
+    '<div class="sr"><label for="pa">Amount color</label><span class="cw"><input type="color" id="pa"><button class="lnk" data-reset="amtColor">Default</button></span></div>'+
+    '<div class="sr col"><label for="pb">Monthly budget (₹)</label><input type="number" id="pb" inputmode="decimal" min="0" placeholder="Automatic: total of regular expenses"></div>'+
+    '<div class="sr col"><label for="pw">Warn when spending reaches this % of the budget</label><input type="number" id="pw" inputmode="decimal" min="1" max="100" step="any"></div>'+
+    '<button class="btn ghost" id="prst">Reset appearance</button>';
+  const pn=d.querySelector('#pn'), pa=d.querySelector('#pa'), pb=d.querySelector('#pb'), pw=d.querySelector('#pw');
+  const mark=()=>d.querySelectorAll('.seg').forEach(g=>g.querySelectorAll('button').forEach(b=>b.classList.toggle('on',S.prefs[g.dataset.k]===b.dataset.v)));
+  const fill=()=>{pn.value=eff(S.prefs.nameColor,'--ink');pa.value=eff(S.prefs.amtColor,'--maroon');pb.value=S.prefs.budget||'';pw.value=S.prefs.warn;mark()};
+  fill();
+  d.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b)return;
+    const g=b.closest('.seg');
+    if(g){setPref(g.dataset.k,b.dataset.v);fill()}
+    else if(b.dataset.reset){setPref(b.dataset.reset,'');setTimeout(fill,60)}
+    else if(b.id==='prst'){Object.assign(S.prefs,{theme:'auto',nameColor:'',amtColor:'',size:'m'});setPref('pu',Date.now());setTimeout(fill,60);toast('Appearance reset')}
+  });
+  pn.oninput=()=>setPref('nameColor',pn.value);
+  pa.oninput=()=>setPref('amtColor',pa.value);
+  pb.oninput=()=>setPref('budget',Math.max(0,parseFloat(pb.value)||0));
+  pw.oninput=()=>{const v=parseFloat(pw.value);if(v>=1&&v<=100)setPref('warn',v)};
+  openSheet('Settings',[d]);
 }
 
 /* ---------- backup ---------- */
@@ -578,31 +826,24 @@ function exportData(){
   a.download='kharcha-backup-'+new Date().toISOString().slice(0,10)+'.json';
   document.body.appendChild(a);a.click();a.remove();
   setTimeout(()=>URL.revokeObjectURL(a.href),3000);
-  toast('Backup download ho gaya');
+  toast('Backup downloaded');
 }
 $('#file').addEventListener('change',async e=>{
   const f=e.target.files[0];e.target.value='';
   if(!f)return;
   try{
     const j=normalize(JSON.parse(await f.text()));
-    if(!Object.keys(j.months).length)throw new Error('empty');
-    if(!confirm('Abhi ka sara data hat kar backup ka data aa jayega. Aage badhein?'))return;
-    S=j;sel.clear();save(true);renderAll();applyTheme();toast('Backup wapas aa gaya');
-  }catch(err){toast('Ye file sahi backup nahi lag rahi')}
+    if(!Object.keys(j.months).length&&!j.master.length)throw new Error('empty');
+    if(!confirm('Merge this backup into your current data? Nothing you already have will be removed.'))return;
+    S=mergeAll(S,j);write();renderAll();applyPrefs();save();toast('Backup restored');
+  }catch(err){toast('This file is not a valid backup')}
 });
 
-/* ---------- sync (GitHub Gist) ---------- */
-// Data aapke GitHub account ke ek private Gist (kharcha.json) me rehta hai. Token sirf is device par, alag key me.
-// Merge: line id se milti hai, naya edit (u) jeetta hai, delete hui lines/pages del/gone me yaad rehte hain.
-const SKEY='kharcha.sync', API='https://api.github.com', GFILE='kharcha.json', GDESC='Kharcha sync (app data)';
-let SY=(()=>{try{return JSON.parse(localStorage.getItem(SKEY))||{}}catch(e){return {}}})();
-let syncing=false, again=false, syncT=null;
-const syncOn=()=>!!SY.token;
-function saveSY(){try{localStorage.setItem(SKEY,JSON.stringify(SY))}catch(e){}}
-
+/* ---------- merge (used for cloud sync and backup restore) ---------- */
+// Lines are matched by id and the newer edit (u) wins. Deleted lines and pages are remembered in del / gone / mdel.
 const blankPage=p=>!p.rows.some(r=>r.t.trim());
 const union=(a,b)=>[...new Set([...a,...b])];
-// Remote ka order rakho, sirf local wale naye items unke pichhle saathi ke baad daalo.
+// Keeps the remote order and places local-only items after their previous neighbour.
 function mergeList(l,r,both,keepR){
   const L=new Map(l.map(x=>[x.id,x])), R=new Set(r.map(x=>x.id));
   const out=r.filter(x=>L.has(x.id)||keepR(x)).map(x=>L.has(x.id)?both(L.get(x.id),x):x);
@@ -623,11 +864,11 @@ function mergePage(l,r){
 function mergeMonth(l,r){
   const gone=union(l.gone,r.gone), G=new Set(gone);
   const rp=r.pages.filter(p=>!G.has(p.id)), rIds=new Set(rp.map(p=>p.id)), rNames=new Set(rp.map(p=>p.name));
-  // Dono device ne apne aap ek hi naam ka khali page banaya ho to ek hi rakho
+  // If both devices created an empty page with the same name on their own, keep just one.
   const lp=l.pages.filter(p=>!G.has(p.id)&&(rIds.has(p.id)||!blankPage(p)||!rNames.has(p.name)));
   const lNames=new Set(lp.map(p=>p.name));
   let pages=mergeList(lp,rp,mergePage,p=>!blankPage(p)||!lNames.has(p.name));
-  if(!pages.length)pages=[newPage('Kharcha')];
+  if(!pages.length)pages=[newPage('Expenses')];
   return {pages,active:(pages.find(p=>p.id===l.active)||pages[0]).id,gone};
 }
 function mergeAll(l,r){
@@ -636,42 +877,71 @@ function mergeAll(l,r){
     const a=l.months[k], b=r.months[k];
     months[k]=a&&b?mergeMonth(a,b):a||b;
   }
-  return {months,theme:l.theme};
+  const mdel=union(l.mdel,r.mdel), D=new Set(mdel);
+  const master=mergeList(l.master.filter(x=>!D.has(x.id)),r.master.filter(x=>!D.has(x.id)),(a,b)=>b.u>a.u?b:a,x=>!!x.name.trim());
+  return {months,master,mdel,prefs:r.prefs.pu>l.prefs.pu?r.prefs:l.prefs};
 }
-// Gist me jane wala JSON, hamesha ek hi kram me. Kabhi na chhui khali lines aur active page nahi jate.
-const payload=s=>JSON.stringify({app:'kharcha',v:2,months:Object.fromEntries(Object.keys(s.months).sort().map(k=>{
-  const m=s.months[k];
-  return [k,{gone:[...m.gone].sort(),pages:m.pages.map(p=>({id:p.id,name:p.name,nu:p.nu,del:[...p.del].sort(),
-    rows:p.rows.filter(r=>r.u||r.t.trim()).map(r=>({id:r.id,t:r.t,u:r.u}))}))}];
-}))});
+// The JSON that is uploaded: stable order, and untouched blank lines are left out.
+const payload=s=>JSON.stringify({app:'kharcha',v:3,
+  months:Object.fromEntries(Object.keys(s.months).sort().map(k=>{
+    const m=s.months[k];
+    return [k,{gone:[...m.gone].sort(),pages:m.pages.map(p=>({id:p.id,name:p.name,nu:p.nu,del:[...p.del].sort(),
+      rows:p.rows.filter(r=>r.u||r.t.trim()).map(r=>({id:r.id,t:r.t,u:r.u}))}))}];
+  })),
+  master:s.master.filter(x=>x.name.trim()).map(x=>({id:x.id,name:x.name,amt:x.amt,u:x.u})),
+  mdel:[...s.mdel].sort(),
+  prefs:(p=>({theme:p.theme,nameColor:p.nameColor,amtColor:p.amtColor,size:p.size,budget:p.budget,warn:p.warn,pu:p.pu}))(s.prefs)});
 
-async function gh(path,opt={}){
-  const res=await fetch(API+path,{...opt,cache:'no-store',headers:{
-    Authorization:'Bearer '+SY.token,Accept:'application/vnd.github+json',...(opt.body?{'Content-Type':'application/json'}:{})}});
-  if(res.status===401||res.status===403)throw new Error('auth');
-  if(!res.ok)throw new Error('http '+res.status);
-  return res.json();
-}
-async function findGist(){
-  for(let pg=1;pg<=10;pg++){
-    const list=await gh('/gists?per_page=100&page='+pg);
-    const g=list.find(g=>g.description===GDESC&&g.files&&g.files[GFILE]);
-    if(g)return g.id;
-    if(list.length<100)return null;
+/* ---------- account + cloud sync (Supabase) ---------- */
+// Each user's data is one row in the "kharcha" table. Row Level Security lets a user read and write only their own row.
+let SY=(()=>{try{return JSON.parse(localStorage.getItem(AKEY))||{}}catch(e){return {}}})();
+let syncing=false, again=false, syncT=null;
+const syncOn=()=>CLOUD&&!!SY.session;
+function saveSY(){try{localStorage.setItem(AKEY,JSON.stringify(SY))}catch(e){}}
+try{localStorage.removeItem('kharcha.sync')}catch(e){}   // token of the earlier Gist sync, no longer used
+
+async function authCall(path,body){
+  let res;
+  try{res=await fetch(CFG.url+'/auth/v1'+path,{method:'POST',headers:{apikey:CFG.key,'Content-Type':'application/json'},body:JSON.stringify(body)})}
+  catch(e){throw new Error('net')}
+  const j=await res.json().catch(()=>({}));
+  if(!res.ok){
+    const e=new Error(j.error_description||j.msg||j.message||('http '+res.status));
+    e.status=res.status;e.code=j.error_code||j.code||'';throw e;
   }
-  return null;
+  return j;
 }
-async function readGist(){
-  let g;
-  try{g=await gh('/gists/'+SY.gist)}catch(e){if(e.message==='http 404'){SY.gist=null;return null}throw e}
-  const f=g.files&&g.files[GFILE]; if(!f)return null;
-  const txt=f.truncated?await (await fetch(f.raw_url,{cache:'no-store'})).text():f.content;
-  return normalize(JSON.parse(txt));
+function setSession(j){
+  SY.session={access_token:j.access_token,refresh_token:j.refresh_token,expires_at:Date.now()+(j.expires_in||3600)*1000,
+    user:{id:j.user.id,email:j.user.email}};
+  saveSY();
+}
+async function token(){
+  const s=SY.session; if(!s)throw new Error('auth');
+  if(s.expires_at-Date.now()>60000)return s.access_token;
+  try{setSession(await authCall('/token?grant_type=refresh_token',{refresh_token:s.refresh_token}))}
+  catch(e){
+    if(e.message==='net'||!(e.status>=400&&e.status<500))throw e.message==='net'?e:new Error('net');
+    throw new Error('auth');
+  }
+  return SY.session.access_token;
+}
+async function rest(path,opt={},retry=true){
+  const tk=await token();
+  let res;
+  try{res=await fetch(CFG.url+'/rest/v1'+path,{...opt,cache:'no-store',headers:{apikey:CFG.key,Authorization:'Bearer '+tk,'Content-Type':'application/json',...opt.headers}})}
+  catch(e){throw new Error('net')}
+  if(res.status===401){
+    if(!retry)throw new Error('auth');
+    SY.session.expires_at=0;return rest(path,opt,false);
+  }
+  return res;
 }
 function applyRemote(next){
   const a=document.activeElement, d=a&&a.classList.contains('t')?a.closest('.row'):null;
   const id=d&&d.dataset.id, pos=d&&a.selectionStart;
-  S=next;write();renderAll();
+  S=next;write();applyPrefs();renderAll();
+  masterUI&&masterUI.refresh();
   const nd=id&&rowDom(id);
   if(nd){const i=nd.querySelector('input');i.focus();try{i.setSelectionRange(pos,pos)}catch(e){}}
 }
@@ -683,80 +953,138 @@ async function sync(manual){
   if(!syncOn())return;
   if(syncing){again=true;return}
   syncing=true;clearTimeout(syncT);syncT=null;
+  const ver=editVer, me=SY.session.user.id;
+  let conflict=false;
   try{
-    if(!SY.gist)SY.gist=await findGist();
-    const remote=SY.gist?await readGist():null;
+    const res=await rest('/kharcha?select=data,updated_at&user_id=eq.'+me);
+    if(!res.ok)throw new Error('http '+res.status);
+    const row=(await res.json())[0]||null;
+    const remote=row?normalize(row.data):null;
     if(remote){
       const next=mergeAll(S,remote);
       if(payload(next)!==payload(S))applyRemote(next);
     }
     const body=payload(S);
     if(!remote||body!==payload(remote)){
-      const files={[GFILE]:{content:body}};
-      if(SY.gist)await gh('/gists/'+SY.gist,{method:'PATCH',body:JSON.stringify({files})});
-      else SY.gist=(await gh('/gists',{method:'POST',body:JSON.stringify({description:GDESC,public:false,files})})).id;
+      const data=JSON.parse(body), now=new Date().toISOString();
+      if(row){
+        // Only update if nobody else changed the row since we read it.
+        const r=await rest('/kharcha?user_id=eq.'+me+'&updated_at=eq.'+encodeURIComponent(row.updated_at),
+          {method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({data,updated_at:now})});
+        if(!r.ok)throw new Error('http '+r.status);
+        if(!(await r.json()).length)conflict=true;
+      }else{
+        const r=await rest('/kharcha',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({user_id:me,data,updated_at:now})});
+        if(r.status===409)conflict=true;else if(!r.ok)throw new Error('http '+r.status);
+      }
     }
-    SY.at=Date.now();SY.err='';saveSY();
-    if(manual)toast('Sync ho gaya');
+    if(conflict)again=true;
+    else{if(editVer===ver)SY.dirty=false;SY.at=Date.now();SY.err='';saveSY();if(manual)toast('Synced')}
   }catch(e){
-    const auth=e.message==='auth', first=SY.err!==(auth?'auth':'net');
+    const auth=e.message==='auth';
     SY.err=auth?'auth':'net';saveSY();
-    if(manual||(auth&&first))toast(auth?'Sync: token galat hai ya expire ho gaya':navigator.onLine?'Sync nahi hua, thodi der me dobara koshish hogi':'Internet nahi hai, baad me sync hoga');
+    if(auth){showAuth('Your session has ended. Please sign in again.')}
+    else if(manual)toast(navigator.onLine?'Sync failed. It will retry shortly':'You are offline. Changes will sync later');
   }finally{
     syncing=false;
     if(again){again=false;scheduleSync(800)}
   }
 }
-function ago(t){
-  if(!t)return '';
+const ago=t=>{
+  if(!t)return 'never';
   const s=(Date.now()-t)/1000;
-  return s<60?'abhi':s<3600?Math.floor(s/60)+' min pehle':s<86400?Math.floor(s/3600)+' ghante pehle':new Date(t).toLocaleDateString('en-IN');
+  return s<60?'just now':s<3600?Math.floor(s/60)+' min ago':s<86400?Math.floor(s/3600)+' hours ago':new Date(t).toLocaleDateString('en-IN');
+};
+
+function authError(e){
+  const m=(e.message||'').toLowerCase(), c=e.code||'';
+  if(e.message==='net')return 'Cannot reach the server. Check your internet connection.';
+  if(c==='user_already_exists'||m.includes('already registered')||m.includes('already been registered'))return 'An account with this email already exists. Please sign in.';
+  if(c==='weak_password'||m.includes('at least 6')||m.includes('password should'))return 'Password must be at least 6 characters.';
+  if(c==='signup_disabled'||m.includes('signups not allowed')||m.includes('signup is disabled'))return 'New sign-ups are turned off. Ask the app owner to create your account.';
+  if(c==='over_request_rate_limit'||c==='over_email_send_rate_limit'||e.status===429)return 'Too many attempts. Please wait a minute and try again.';
+  if(c==='invalid_credentials'||m.includes('invalid login'))return 'Incorrect email or password.';
+  if(c==='email_not_confirmed'||m.includes('not confirmed'))return 'Please confirm your email address first, then sign in.';
+  if(m.includes('valid email')||c==='validation_failed'||c==='email_address_invalid')return 'Please enter a valid email address.';
+  return 'Something went wrong. Please try again.';
 }
-const syncHint=()=>!syncOn()?'Band':SY.err==='auth'?'Token dikkat':SY.err?'Ruka hua':'Chalu';
-async function connect(tok){
-  SY={token:tok};
-  try{await gh('/gists?per_page=1')}
-  catch(e){SY={};return toast(e.message==='auth'?'Ye token kaam nahi kar raha':'GitHub tak nahi pahunch paye, internet dekho')}
-  saveSY();closeSheet();toast('Sync chalu ho raha hai…');
+function showAuth(msg,mode='in'){
+  closeSheet();const mo=$('#master');if(mo){mo.remove();masterUI=null}
+  document.body.classList.add('locked');
+  const old=$('#auth');if(old)old.remove();
+  const a=document.createElement('div');a.id='auth';
+  const up=mode==='up';
+  a.innerHTML='<div class="ac"><h1>Kharcha</h1><p class="as">Your private expense tracker</p>'+
+    '<form id="af" novalidate>'+
+    '<label class="fl">Email<input id="ae" type="email" autocomplete="username" inputmode="email" autocapitalize="off" spellcheck="false"></label>'+
+    '<label class="fl">Password<input id="ap" type="password" autocomplete="'+(up?'new-password':'current-password')+'"></label>'+
+    '<div id="aerr" role="alert"></div>'+
+    '<button class="btn" id="asub" type="submit">'+(up?'Create account':'Sign in')+'</button></form>'+
+    '<button class="lnk" id="aswitch" type="button">'+(up?'Already have an account? Sign in':'New here? Create an account')+'</button></div>';
+  document.body.appendChild(a);
+  const err=a.querySelector('#aerr'), em=a.querySelector('#ae'), pw=a.querySelector('#ap'), btn=a.querySelector('#asub');
+  if(msg)err.textContent=msg;
+  a.querySelector('#aswitch').onclick=()=>showAuth('',up?'in':'up');
+  a.querySelector('#af').onsubmit=async e=>{
+    e.preventDefault();
+    const email=em.value.trim(), pass=pw.value;
+    err.className='';
+    if(!/^\S+@\S+\.\S+$/.test(email)){err.textContent='Please enter a valid email address.';return em.focus()}
+    if(pass.length<6){err.textContent='Password must be at least 6 characters.';return pw.focus()}
+    btn.disabled=true;btn.textContent='Please wait…';err.textContent='';
+    try{
+      const j=up?await authCall('/signup',{email,password:pass}):await authCall('/token?grant_type=password',{email,password:pass});
+      if(!j.access_token){
+        err.className='ok';err.textContent='Account created. Check your email to confirm it, then sign in.';
+        btn.disabled=false;btn.textContent=up?'Create account':'Sign in';return;
+      }
+      await signedIn(j);
+    }catch(ex){
+      err.textContent=authError(ex);
+      btn.disabled=false;btn.textContent=up?'Create account':'Sign in';
+    }
+  };
+  setTimeout(()=>em.focus(),50);
+}
+async function signedIn(j){
+  const id=j.user.id, owner=localStorage.getItem(OWNER);
+  setSession(j);
+  if(owner&&owner!==id){S=blankState()}   // the data on this device belonged to someone else: never show it
+  else if(!owner&&hasAnyData()&&!confirm('This device already has saved expenses. Add them to this account?'))S=blankState();
+  write();
+  try{localStorage.setItem(OWNER,id)}catch(e){}
+  SY.dirty=hasAnyData();SY.err='';saveSY();
+  cur=mk(new Date());sel.clear();
+  // Download the account's data before drawing anything, so a new device does not invent an empty page of its own.
   await sync(true);
+  document.body.classList.remove('locked');
+  const a=$('#auth');if(a)a.remove();
+  applyPrefs();renderAll();
 }
-function openSync(){
+async function signOut(){
+  if(!confirm('Sign out on this device? Your data stays safe in your account.'))return;
+  if(SY.dirty)await sync();
+  if(SY.dirty&&!confirm('Some recent changes have not been uploaded and will be lost. Sign out anyway?'))return;
+  clearTimeout(saveT);clearTimeout(syncT);
+  try{localStorage.removeItem(KEY);localStorage.removeItem(OWNER);localStorage.removeItem(AKEY)}catch(e){}
+  SY={};S=blankState();sel.clear();
+  applyPrefs();
+  showAuth('You have been signed out.');
+}
+function openAccount(){
   const d=document.createElement('div');d.className='tips';
-  if(!syncOn()){
-    d.innerHTML='<p>Phone aur laptop me ek hi kharcha dikhane ke liye data aapke GitHub account ke ek <b>private Gist</b> me rakha jata hai. Har device par ek baar token daalna hota hai.</p>'+
-      '<p><b>1.</b> Neeche wala button dabao aur GitHub me login karo. Wahan sirf <b>gist</b> tick hoga. Expiration me <b>No expiration</b> chuno, phir <b>Generate token</b> dabao.</p>'+
-      '<p><b>2.</b> Jo token (<b>ghp_</b> se shuru) dikhe use copy karke yahan daalo. Dusre device par bhi yahi token daalna hai, isliye ise kahin sambhal ke rakho.</p>'+
-      '<a class="btn ghost" target="_blank" rel="noopener" href="https://github.com/settings/tokens/new?scopes=gist&amp;description=Kharcha%20sync">GitHub par token banao</a>'+
-      '<label class="fl">Token<input type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="ghp_…"></label>'+
-      '<button class="btn">Sync chalu karo</button>';
-    const inp=d.querySelector('input'), b=d.querySelector('button');
-    b.onclick=async()=>{
-      const t=inp.value.trim(); if(!t)return inp.focus();
-      b.disabled=true;b.textContent='Check ho raha hai…';
-      await connect(t);
-      b.disabled=false;b.textContent='Sync chalu karo';
-    };
-    return openSheet('Phone + laptop sync',[d]);
-  }
-  d.innerHTML='<p></p>';
-  d.firstChild.textContent=SY.err==='auth'?'Token kaam nahi kar raha. Sync band karke naya token daalo.':
-    SY.err?'Pichhli baar sync nahi hua (internet?). Apne aap dobara koshish hogi.':
-    'Sync chalu hai. Badlav kuch second me upload hote hain, aur app kholte hi dusre device ka data aa jata hai.';
-  openSheet('Phone + laptop sync',[d,
-    {label:'Abhi sync karo',hint:SY.at?'Pichhli: '+ago(SY.at):'',run:()=>sync(true)},
-    {label:'Is device par sync band karo',danger:true,run:()=>{
-      if(!confirm('Is device par sync band karein? Kharcha is device par aur Gist me dono jagah rahega.'))return;
-      SY={};saveSY();toast('Sync band ho gaya');
-    }}
+  d.innerHTML='<p>Signed in as <b></b></p><p></p>';
+  d.querySelector('b').textContent=SY.session?SY.session.user.email:'';
+  d.lastChild.textContent=SY.err==='net'?'The last sync did not finish (no connection?). It will retry automatically.':
+    'Last synced: '+ago(SY.at)+'. Your data is private to this account.';
+  openSheet('Account',[d,
+    {label:'Sync now',run:()=>sync(true)},
+    {label:'Sign out',danger:true,run:signOut}
   ]);
 }
 
-/* ---------- theme, toast, boot ---------- */
-function applyTheme(){
-  document.documentElement.dataset.theme=S.theme||'auto';
-  requestAnimationFrame(()=>{$('#tc').content=getComputedStyle(document.documentElement).getPropertyValue('--paper').trim()});
-}
-matchMedia('(prefers-color-scheme:dark)').addEventListener?.('change',applyTheme);
+/* ---------- toast, boot ---------- */
+matchMedia('(prefers-color-scheme:dark)').addEventListener?.('change',applyPrefs);
 let toastT;
 function toast(t){
   const el=$('#toast');el.textContent=t;el.classList.add('on');
@@ -764,18 +1092,21 @@ function toast(t){
 }
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){write();if(syncT)sync()}
-  else if(Date.now()-(SY.at||0)>10000)sync();
+  else if(syncOn()&&Date.now()-(SY.at||0)>10000)sync();
 });
-addEventListener('pagehide',write);
+addEventListener('pagehide',()=>{if(!document.body.classList.contains('locked'))write()});
 addEventListener('online',()=>sync());
-// Khula ho to har 30 second dusre device ke badlav le aao (likhte waqt nahi).
+// While the app is open, pick up changes made on another device every 30 seconds (not while typing).
 setInterval(()=>{if(!document.hidden&&Date.now()-lastEdit>8000)sync()},30000);
 
-applyTheme();
-renderAll();
-if(matchMedia('(pointer:fine)').matches)focusRow(elSheet.querySelector('.row'));
+applyPrefs();
+if(CLOUD&&!SY.session){showAuth()}
+else{
+  renderAll();
+  if(matchMedia('(pointer:fine)').matches)focusRow(elSheet.querySelector('.row'));
+  sync();
+}
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
-sync();
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 })();
 </script>

@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Kharcha - Monthly Expense Tracker",
   "short_name": "Kharcha",
-  "description": "Mahine aur page ke hisaab se kharcha likhne ki copy",
+  "description": "A private monthly expense tracker with regular expenses and budget alerts",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -1,26 +1,52 @@
 # Kharcha
 
-Mahine aur page ke hisaab se kharcha likhne ki copy. Koi server ya database nahi, data aapke browser me save hota hai.
+A private monthly expense tracker. Every user has their own account and sees only their own data.
 
-## GitHub Pages par daalne ke steps
+Plain HTML, CSS and JavaScript. No framework and no build step. It is hosted on GitHub Pages, and the data is stored in a free Supabase database.
 
-1. GitHub par naya repository banao (jaise `kharcha`).
-2. Is folder ki saari files (`index.html`, `sw.js`, `manifest.webmanifest`, teeno `icon-*.png`, `apple-touch-icon.png`) repository ke root me upload karo.
-3. Repository me **Settings > Pages** kholo. **Source** me `Deploy from a branch`, branch `main`, folder `/ (root)` chuno aur Save karo.
-4. 1-2 minute baad link milega: `https://<username>.github.io/kharcha/`
-5. Phone me us link ko Chrome me kholo, menu me **Install app** ya **Add to Home screen** dabao.
+## Features
 
-## Dhyan rakhne ki baatein
+- **Private accounts:** sign in with an email and password. Row Level Security in the database guarantees that a user can only read and write their own data.
+- **Monthly screens:** the current month opens automatically after sign-in. Move between months with the arrows; each month is independent.
+- **Regular Expenses:** a personal list of recurring bills (rent, recharge, EMI, subscriptions...). Their total is the monthly budget, and one tap adds them to the current month.
+- **Budget colors:** the month header stays default below 87.5% of the budget (for an 80,000 budget: below 70,000), turns **yellow** from there up to the budget, and **red** above it.
+- **Personal preferences:** theme, text size, expense name color, amount color, manual budget and warning level.
+- **Works offline** and syncs between your devices when you are back online.
 
-- Data har device ke browser me save hota hai. Phone aur laptop me ek hi data ke liye menu me **Phone + laptop sync** chalu karo:
-  1. https://github.com/settings/tokens/new?scopes=gist&description=Kharcha%20sync kholo, sirf **gist** tick rakho, Expiration **No expiration**, **Generate token**.
-  2. Token (`ghp_...`) copy karo, app me paste karke **Sync chalu karo**. Dusre device par bhi wahi token daalo.
-  3. Data aapke account ke ek private Gist (`kharcha.json`, "Kharcha sync (app data)") me rehta hai. Us Gist ko delete mat karna.
-  Badlav kuch second me upload hote hain. Dusre device par app kholne par (ya khuli app me 30 second ke andar) aa jate hain.
-- Token sirf usi device ke browser me rehta hai, backup file ya Gist me nahi jata. Kisi ke saath share mat karna.
-- Sync chalu ho to **Backup wapas lao** purane data ko hatata nahi, dono jud jate hain.
-- Bina sync ke le jana ho to menu me **Backup download karo** aur dusri jagah **Backup wapas lao**.
-- iPhone par Safari aur Home Screen wala app alag-alag storage rakhte hain. Safari me likha kharcha installed app me nahi dikhega,
-  isliye app install karne ke baad usi me likhna shuru karo (ya Backup se le aao).
-- Browser ka data (site data) clear karoge to kharcha bhi chala jayega, isliye kabhi kabhi backup le lena.
-- App update karne ke baad `sw.js` me `VERSION` ka naam badal do (jaise `kharcha-v2`), warna purana version cache se dikhta rahega.
+## Setting up the database (one time)
+
+1. Create a free project at https://supabase.com (region: Mumbai).
+2. Open **SQL Editor**, paste the contents of `supabase-setup.sql` and click **Run**.
+3. Open **Authentication > Sign In / Providers > Email** and turn **Confirm email** off, then Save. (Otherwise every new user must confirm an email address first.)
+4. Open **Project Settings > API Keys**, copy the **Project URL** and the **publishable key** (`sb_publishable_...`, or the older `anon` key).
+5. In `index.html`, find `const CFG={url:'',key:''};` and paste both values in.
+6. Never put the `secret` or `service_role` key in the app.
+
+While `CFG` is empty the app runs in local mode: no sign-in, and data stays in this browser only.
+
+## Publishing on GitHub Pages
+
+1. Push the files to a public repository.
+2. **Settings > Pages > Deploy from a branch > `main` / `(root)` > Save**.
+3. The app is live at `https://<username>.github.io/<repository>/` (the repository name is case-sensitive).
+
+Then open the link on each phone and laptop and choose **Install app** (Chrome) or **Share > Add to Home Screen** (iPhone Safari).
+
+## Good to know
+
+- Each user creates their own account from the sign-in screen (**New here? Create an account**). When everyone has signed up, turn off **Allow new users to sign up** in Supabase (Authentication > Sign In / Providers) so strangers cannot create accounts.
+- There is no email-based password reset. If someone forgets a password, change it for them under **Authentication > Users** in the Supabase dashboard.
+- Signing out removes the data from that device (it stays in the account), so a shared phone never shows another person's expenses.
+- Data that already exists in a browser before the first sign-in is added to the account of whoever signs in first, after a confirmation.
+- On iPhone, Safari and the Home Screen app keep separate storage. Sign in inside the installed app.
+- Keep an occasional backup: **Menu > Download backup**.
+
+## Releasing an update
+
+Change `VERSION` in `sw.js` (for example `kharcha-v5`) on every release, otherwise phones keep showing the cached old version. Then:
+
+```
+git add .
+git commit -m "Describe the change"
+git push
+```

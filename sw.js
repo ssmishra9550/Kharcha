@@ -1,9 +1,9 @@
-// Kharcha service worker: offline chalne ke liye.
-// App update karne par VERSION badal do taaki purana cache hat jaye.
-const VERSION = 'kharcha-v3';
+// Kharcha service worker: lets the app work offline.
+// Change VERSION on every release so the old cache is removed.
+const VERSION = 'kharcha-v4';
 const ASSETS = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'];
 
-// cache:'reload' taaki browser ke HTTP cache se purani file na uthe.
+// cache:'reload' makes sure the browser's HTTP cache never hands us an old file.
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(VERSION)
@@ -20,7 +20,8 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Pehle cache se turant dikhao, peeche se network se naya version le aao.
+// Show the cached copy immediately, and refresh it from the network in the background.
+// Requests to other origins (the Supabase API) are never touched.
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
