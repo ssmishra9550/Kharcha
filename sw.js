@@ -1,6 +1,6 @@
 // Kharcha service worker: lets the app work offline.
 // Change VERSION on every release so the old cache is removed.
-const VERSION = 'kharcha-v4';
+const VERSION = 'kharcha-v5';
 const ASSETS = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png', 'apple-touch-icon.png'];
 
 // cache:'reload' makes sure the browser's HTTP cache never hands us an old file.
