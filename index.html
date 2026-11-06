@@ -956,6 +956,7 @@ async function sync(manual){
     const res=await rest('/kharcha?select=data,updated_at&user_id=eq.'+me);
     if(!res.ok)throw new Error('http '+res.status);
     const row=(await res.json())[0]||null;
+    SY.seen=row?row.updated_at:null;
     const remote=row?normalize(row.data):null;
     if(remote){
       const next=mergeAll(S,remote);
@@ -969,10 +970,12 @@ async function sync(manual){
         const r=await rest('/kharcha?user_id=eq.'+me+'&updated_at=eq.'+encodeURIComponent(row.updated_at),
           {method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({data,updated_at:now})});
         if(!r.ok)throw new Error('http '+r.status);
-        if(!(await r.json()).length)conflict=true;
+        const out=await r.json();
+        if(!out.length)conflict=true;else SY.seen=out[0].updated_at||null;   // remember our own write so we do not re-download it
       }else{
         const r=await rest('/kharcha',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({user_id:me,data,updated_at:now})});
         if(r.status===409)conflict=true;else if(!r.ok)throw new Error('http '+r.status);
+        SY.seen=null;
       }
     }
     if(conflict)again=true;
@@ -986,6 +989,16 @@ async function sync(manual){
     syncing=false;
     if(again){again=false;scheduleSync(800)}
   }
+}
+// Cheap check for changes made on another device: fetch only updated_at, and run a full sync if it moved.
+async function peek(){
+  if(!syncOn()||syncing||document.hidden||Date.now()-lastEdit<8000)return;
+  try{
+    const res=await rest('/kharcha?select=updated_at&user_id=eq.'+SY.session.user.id);
+    if(!res.ok)return;
+    const row=(await res.json())[0];
+    if(row&&row.updated_at!==SY.seen)sync();
+  }catch(e){}
 }
 const ago=t=>{
   if(!t)return 'never';
@@ -1089,12 +1102,13 @@ function toast(t){
 }
 document.addEventListener('visibilitychange',()=>{
   if(document.hidden){write();if(syncT)sync()}
-  else if(syncOn()&&Date.now()-(SY.at||0)>10000)sync();
+  else if(syncOn())sync();   // back in the app: catch up right away
 });
 addEventListener('pagehide',()=>{if(!document.body.classList.contains('locked'))write()});
 addEventListener('online',()=>sync());
-// While the app is open, pick up changes made on another device every 30 seconds (not while typing).
-setInterval(()=>{if(!document.hidden&&Date.now()-lastEdit>8000)sync()},30000);
+// While the app is open, pick up changes made on another device within seconds (not while typing).
+setInterval(peek,8000);
+setInterval(()=>{if(!document.hidden&&Date.now()-lastEdit>8000)sync()},60000);   // safety net
 
 applyPrefs();
 if(CLOUD&&!SY.session){showAuth()}
