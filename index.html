@@ -119,14 +119,7 @@ input.t::placeholder{color:var(--muted);opacity:.7}
 .hint .btn{margin:10px 0 0;height:44px;font-size:15.5px}
 
 /* ---------- bottom ---------- */
-#selbar{
-  display:none;flex:none;align-items:center;gap:10px;padding:9px 16px;
-  background:var(--selbg);color:var(--selfg);font-size:15px;
-}
-#selbar.on{display:flex}
-#selbar .sp{flex:1}
-#ss{font-size:19px;font-variant-numeric:tabular-nums}
-#selclr{border:1.5px solid currentColor;background:none;border-radius:999px;padding:4px 14px;font-size:14px;font-weight:600;color:inherit}
+#bar em{display:block;margin-top:2px;font-style:normal;font-size:12px;line-height:1.35;color:var(--barmut)}
 #bar,.mfoot{
   flex:none;display:grid;grid-template-columns:1fr 1fr;gap:12px;background:var(--bar);color:var(--barfg);
   padding:12px 18px calc(12px + var(--safe-b));
@@ -241,10 +234,9 @@ input.t:focus-visible{outline:0}
 
   <main id="paper"><div id="sheet"></div></main>
 
-  <div id="selbar"><span id="sn"></span><span class="sp"></span><b id="ss"></b><button id="selclr">Clear</button></div>
   <footer id="bar">
-    <div class="c"><small id="pl">Page total</small><b id="pt">₹0</b></div>
-    <div class="c"><small>Month total</small><b id="mt">₹0</b></div>
+    <div class="c"><small id="pl">Page outstanding</small><b id="pt">₹0</b><em id="pe"></em></div>
+    <div class="c"><small>Month outstanding</small><b id="mt">₹0</b><em id="me"></em></div>
   </footer>
 </div>
 <input type="file" id="file" accept=".json,application/json" hidden>
@@ -267,7 +259,8 @@ const rnd=n=>Math.round(n*100)/100;
 const money=n=>'₹'+fmt.format(rnd(n));
 const mk=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
 // u = time of the last edit (the newer edit wins when syncing). A blank new line has u = 0.
-const newRow=(t='')=>({id:uid(),t,u:t?Date.now():0});
+// d = 1 when the line is ticked as paid (a completed transaction).
+const newRow=(t='')=>({id:uid(),t,u:t?Date.now():0,d:0});
 const newPage=(name,rows=[newRow()])=>({id:uid(),name,nu:0,rows,del:[]});
 const titleOf=k=>{const [y,m]=k.split('-').map(Number);return new Date(y,m-1,1).toLocaleDateString('en-IN',{month:'long',year:'numeric'})};
 
@@ -301,7 +294,7 @@ function normalize(j){
     if(!/^\d{4}-\d{2}$/.test(k)||!m||!Array.isArray(m.pages))continue;
     const pages=m.pages.map(p=>({
       id:p.id||uid(),name:String(p.name||'Expenses').slice(0,30),nu:+p.nu||0,
-      rows:(Array.isArray(p.rows)&&p.rows.length?p.rows:[newRow()]).map(r=>({id:r.id||uid(),t:String(r.t||''),u:+r.u||0})),
+      rows:(Array.isArray(p.rows)&&p.rows.length?p.rows:[newRow()]).map(r=>({id:r.id||uid(),t:String(r.t||''),u:+r.u||0,d:r.d?1:0})),
       del:idList(p.del)
     }));
     if(!pages.length)continue;
@@ -337,7 +330,6 @@ function save(now){
 
 /* ---------- model helpers ---------- */
 let cur=mk(new Date());
-const sel=new Set();
 function monthOf(k){
   if(!S.months[k]){
     const keys=Object.keys(S.months).sort();
@@ -352,6 +344,9 @@ const M=()=>monthOf(cur);
 const P=()=>{const m=M();return m.pages.find(p=>p.id===m.active)||m.pages[0]};
 const pageTotal=p=>p.rows.reduce((s,r)=>s+(amountOf(r.t)||0),0);
 const monthTotal=m=>m.pages.reduce((s,p)=>s+pageTotal(p),0);
+// Paid = ticked lines. Outstanding = total - paid.
+const pagePaid=p=>p.rows.reduce((s,r)=>s+(r.d?amountOf(r.t)||0:0),0);
+const monthPaid=m=>m.pages.reduce((s,p)=>s+pagePaid(p),0);
 const hasData=m=>m.pages.some(p=>p.rows.some(r=>r.t.trim()));
 const hasAnyData=()=>S.master.some(x=>x.name.trim())||Object.values(S.months).some(hasData);
 const masterTotal=()=>S.master.reduce((s,x)=>s+(x.name.trim()?x.amt:0),0);
@@ -361,6 +356,7 @@ const budget=()=>S.prefs.budget>0?S.prefs.budget:masterTotal();
 /* ---------- render ---------- */
 const elTabs=$('#tabs'), elSheet=$('#sheet');
 let budgetState='ok';
+const outLine=(total,paid)=>total>0&&rnd(total-paid)===0?'All paid · '+money(total):'Total '+money(total)+' · Paid '+money(paid);
 
 function renderTitle(){$('#title').textContent=titleOf(cur)}
 
@@ -393,9 +389,9 @@ function updateTabTotals(){
 
 function rowEl(r,single){
   const d=document.createElement('div');
-  d.className='row'+(sel.has(r.id)?' sel':'');
+  d.className='row'+(r.d?' sel':'');
   d.dataset.id=r.id;
-  d.innerHTML='<button class="mark" tabindex="-1" aria-label="Select line to add to sum" data-act="mark"></button>'+
+  d.innerHTML='<button class="mark" tabindex="-1" aria-label="Mark as paid" data-act="mark"></button>'+
     '<input class="t" type="text" enterkeyhint="next" autocomplete="off" autocapitalize="sentences" autocorrect="off" spellcheck="false" aria-label="Expense">'+
     '<span class="amt"></span>'+
     '<button class="del" tabindex="-1" aria-label="Delete line" data-act="del">×</button>';
@@ -445,14 +441,12 @@ function syncThemeColor(){
 
 function renderTotals(){
   const m=M(), p=P();
-  $('#pl').textContent=p.name+' total';
-  $('#pt').textContent=money(pageTotal(p));
-  $('#mt').textContent=money(monthTotal(m));
-  let n=0,s=0;
-  p.rows.forEach(r=>{if(sel.has(r.id)){n++;s+=amountOf(r.t)||0}});
-  $('#selbar').classList.toggle('on',n>0);
-  $('#sn').textContent=n+(n===1?' line selected':' lines selected');
-  $('#ss').textContent=money(s);
+  const pt=pageTotal(p), pp=pagePaid(p), mt=monthTotal(m), mp=monthPaid(m);
+  $('#pl').textContent=p.name+' outstanding';
+  $('#pt').textContent=money(pt-pp);
+  $('#pe').textContent=outLine(pt,pp);
+  $('#mt').textContent=money(mt-mp);
+  $('#me').textContent=outLine(mt,mp);
   updateTabTotals();
   updateHint();
   renderBudget();
@@ -481,20 +475,22 @@ function removeRow(id){
   if(i<0)return;
   const d=rowDom(id);
   if(p.rows.length<=1){
-    p.rows[0].t='';p.rows[0].u=Date.now();d.querySelector('input').value='';setAmt(d,'');
+    p.rows[0].t='';p.rows[0].d=0;p.rows[0].u=Date.now();d.querySelector('input').value='';d.classList.remove('sel');setAmt(d,'');
   }else{
     if(p.rows[i].u||p.rows[i].t.trim())p.del.push(id);
-    p.rows.splice(i,1);sel.delete(id);
+    p.rows.splice(i,1);
     const prev=d.previousElementSibling, next=d.nextElementSibling;
     d.remove();
     focusRow(prev&&prev.classList.contains('row')?prev:next);
   }
   renderTotals();save();
 }
-function toggleSel(id,d){
-  sel.has(id)?sel.delete(id):sel.add(id);
-  d.classList.toggle('sel',sel.has(id));
-  renderTotals();
+// Ticking a line marks it as paid. It is saved with the line, so it also syncs to your other devices.
+function togglePaid(id,d){
+  const r=findRow(id); if(!r)return;
+  r.d=r.d?0:1;r.u=Date.now();
+  d.classList.toggle('sel',!!r.d);
+  renderTotals();save();
 }
 function tapBlank(){
   const rows=P().rows, last=rows[rows.length-1];
@@ -536,18 +532,17 @@ elSheet.addEventListener('click',e=>{
   if(e.target.closest('[data-do=regulars]'))return addRegulars();
   const b=e.target.closest('[data-act]'), d=e.target.closest('.row');
   if(b&&d){
-    if(b.dataset.act==='mark')toggleSel(d.dataset.id,d);
+    if(b.dataset.act==='mark')togglePaid(d.dataset.id,d);
     else if(b.dataset.act==='del')removeRow(d.dataset.id);
     return;
   }
   if(e.target===elSheet||e.target.closest('#hint'))tapBlank();
 });
-$('#selclr').onclick=()=>{sel.clear();elSheet.querySelectorAll('.row.sel').forEach(d=>d.classList.remove('sel'));renderTotals()};
 
 /* ---------- month + pages ---------- */
 function goMonth(k){
   if(!/^\d{4}-\d{2}$/.test(k))return;
-  cur=k;sel.clear();renderAll();
+  cur=k;renderAll();
 }
 function shift(n){
   const [y,m]=cur.split('-').map(Number);
@@ -563,7 +558,7 @@ elTabs.addEventListener('click',e=>{
   if(b.dataset.act==='addpage')return addPage();
   const m=M();
   if(m.active!==b.dataset.id){
-    m.active=b.dataset.id;sel.clear();renderTabs();renderRows();renderTotals();save();
+    m.active=b.dataset.id;renderTabs();renderRows();renderTotals();save();
   }else openPageMenu();
 });
 
@@ -571,7 +566,7 @@ function addPage(){
   const n=prompt('Name for the new page (for example: Home, Market, Travel)');
   if(!n||!n.trim())return;
   const m=M(), p=newPage(n.trim().slice(0,30));
-  m.pages.push(p);m.active=p.id;sel.clear();renderAll();save();
+  m.pages.push(p);m.active=p.id;renderAll();save();
 }
 function renamePage(){
   const p=P(), n=prompt('New page name',p.name);
@@ -582,17 +577,18 @@ function deletePage(){
   const m=M(), p=P();
   if(m.pages.length<2)return toast('At least one page must remain');
   if(!confirm('Delete the page "'+p.name+'" and all of its lines?'))return;
-  m.gone.push(p.id);m.pages=m.pages.filter(x=>x!==p);m.active=m.pages[0].id;sel.clear();renderAll();save();
+  m.gone.push(p.id);m.pages=m.pages.filter(x=>x!==p);m.active=m.pages[0].id;renderAll();save();
 }
 function clearPage(){
   if(!confirm('Remove all lines on this page?'))return;
   const p=P();p.del.push(...p.rows.filter(r=>r.u||r.t.trim()).map(r=>r.id));
-  p.rows=[newRow()];sel.clear();renderRows();renderTotals();save();
+  p.rows=[newRow()];renderRows();renderTotals();save();
 }
-function selectAll(){
-  P().rows.forEach(r=>{if(amountOf(r.t)!=null)sel.add(r.id)});
-  elSheet.querySelectorAll('.row').forEach(d=>d.classList.toggle('sel',sel.has(d.dataset.id)));
-  renderTotals();
+// Marks every line that has an amount as paid (or clears all ticks on the page).
+function markAll(paid){
+  const now=Date.now();
+  P().rows.forEach(r=>{if(amountOf(r.t)!=null&&!!r.d!==paid){r.d=paid?1:0;r.u=now}});
+  renderRows();renderTotals();save();
 }
 function copyPage(){
   const p=P();
@@ -614,7 +610,7 @@ function addRegulars(){
   while(p.rows.length&&!p.rows[p.rows.length-1].t.trim())p.rows.pop();
   fresh.forEach(x=>p.rows.push(newRow(x.name.trim()+': '+rnd(x.amt))));
   p.rows.push(newRow());
-  sel.clear();renderRows();renderTotals();save();
+  renderRows();renderTotals();save();
   toast('Added '+fresh.length+(fresh.length===1?' regular expense':' regular expenses'));
 }
 
@@ -659,7 +655,8 @@ function openMonths(){
 function openPageMenu(){
   openSheet(P().name,[
     {label:'Rename page',run:renamePage},
-    {label:'Select all lines (for sum)',run:selectAll},
+    {label:'Mark all lines as paid',run:()=>markAll(true)},
+    {label:'Mark all lines as unpaid',run:()=>markAll(false)},
     {label:'Copy page as text',run:copyPage},
     {label:'Clear all lines on this page',run:clearPage,danger:true},
     {label:'Delete page',run:deletePage,danger:true}
@@ -683,7 +680,7 @@ function openHelp(){
   const d=document.createElement('div');d.className='tips';
   d.innerHTML='<p>Press <b>Enter</b> for a new line. Press <b>Backspace</b> on an empty line to remove it, or tap the <b>×</b> shown while a line is selected.</p>'+
     '<p>The <b>last number</b> on a line is its amount. <b>2x30</b> and <b>20+30</b> also work. A line that starts with <b>#</b> is a note and is not added to the total.</p>'+
-    '<p>Tap the <b>circle</b> to the left of a line to include it in a separate sum, shown at the bottom.</p>'+
+    '<p>Tap the <b>circle</b> to the left of a line to mark it as <b>paid</b>. The bottom bar then shows what is still <b>outstanding</b> (total minus paid) for the page and for the month. Ticks are saved and sync to your other devices.</p>'+
     '<p>The number on each tab is that page\'s total. Tap the selected tab again to open its options.</p>'+
     '<p>Under <b>Regular expenses</b> list the bills you pay every month. Their total becomes your monthly budget, and the header turns <b>yellow</b> when spending nears it and <b>red</b> when it goes over.</p>'+
     (CLOUD?'<p>Your data is private to your account and syncs between your devices when you sign in.</p>'
@@ -886,7 +883,7 @@ const payload=s=>JSON.stringify({app:'kharcha',v:3,
   months:Object.fromEntries(Object.keys(s.months).sort().map(k=>{
     const m=s.months[k];
     return [k,{gone:[...m.gone].sort(),pages:m.pages.map(p=>({id:p.id,name:p.name,nu:p.nu,del:[...p.del].sort(),
-      rows:p.rows.filter(r=>r.u||r.t.trim()).map(r=>({id:r.id,t:r.t,u:r.u}))}))}];
+      rows:p.rows.filter(r=>r.u||r.t.trim()).map(r=>({id:r.id,t:r.t,u:r.u,d:r.d?1:0}))}))}];
   })),
   master:s.master.filter(x=>x.name.trim()).map(x=>({id:x.id,name:x.name,amt:x.amt,u:x.u})),
   mdel:[...s.mdel].sort(),
@@ -1054,7 +1051,7 @@ async function signedIn(j){
   write();
   try{localStorage.setItem(OWNER,id)}catch(e){}
   SY.dirty=hasAnyData();SY.err='';saveSY();
-  cur=mk(new Date());sel.clear();
+  cur=mk(new Date());
   // Download the account's data before drawing anything, so a new device does not invent an empty page of its own.
   await sync(true);
   document.body.classList.remove('locked');
@@ -1067,7 +1064,7 @@ async function signOut(){
   if(SY.dirty&&!confirm('Some recent changes have not been uploaded and will be lost. Sign out anyway?'))return;
   clearTimeout(saveT);clearTimeout(syncT);
   try{localStorage.removeItem(KEY);localStorage.removeItem(OWNER);localStorage.removeItem(AKEY)}catch(e){}
-  SY={};S=blankState();sel.clear();
+  SY={};S=blankState();
   applyPrefs();
   showAuth('You have been signed out.');
 }
