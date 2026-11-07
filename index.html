@@ -235,8 +235,8 @@ input.t:focus-visible{outline:0}
   <main id="paper"><div id="sheet"></div></main>
 
   <footer id="bar">
-    <div class="c"><small id="pl">Page outstanding</small><b id="pt">₹0</b><em id="pe"></em></div>
-    <div class="c"><small>Month outstanding</small><b id="mt">₹0</b><em id="me"></em></div>
+    <div class="c"><small>Paid</small><b id="pt">₹0</b><em id="pe"></em></div>
+    <div class="c"><small>Remaining to pay</small><b id="mt">₹0</b><em id="me"></em></div>
   </footer>
 </div>
 <input type="file" id="file" accept=".json,application/json" hidden>
@@ -356,7 +356,6 @@ const budget=()=>S.prefs.budget>0?S.prefs.budget:masterTotal();
 /* ---------- render ---------- */
 const elTabs=$('#tabs'), elSheet=$('#sheet');
 let budgetState='ok';
-const outLine=(total,paid)=>total>0&&rnd(total-paid)===0?'All paid · '+money(total):'Total '+money(total)+' · Paid '+money(paid);
 
 function renderTitle(){$('#title').textContent=titleOf(cur)}
 
@@ -441,12 +440,12 @@ function syncThemeColor(){
 
 function renderTotals(){
   const m=M(), p=P();
-  const pt=pageTotal(p), pp=pagePaid(p), mt=monthTotal(m), mp=monthPaid(m);
-  $('#pl').textContent=p.name+' outstanding';
-  $('#pt').textContent=money(pt-pp);
-  $('#pe').textContent=outLine(pt,pp);
-  $('#mt').textContent=money(mt-mp);
-  $('#me').textContent=outLine(mt,mp);
+  // Bottom bar, for the whole month: left = paid (ticked lines), right = still to pay (total - paid).
+  const pt=pageTotal(p), pp=pagePaid(p), mt=monthTotal(m), mp=monthPaid(m), left=rnd(mt-mp);
+  $('#pt').textContent=money(mp);
+  $('#pe').textContent='Total '+money(mt)+' this month';
+  $('#mt').textContent=money(left);
+  $('#me').textContent=mt>0&&left===0?'All paid':m.pages.length>1?p.name+': '+money(pt-pp)+' left':'Still to pay';
   updateTabTotals();
   updateHint();
   renderBudget();
@@ -680,7 +679,7 @@ function openHelp(){
   const d=document.createElement('div');d.className='tips';
   d.innerHTML='<p>Press <b>Enter</b> for a new line. Press <b>Backspace</b> on an empty line to remove it, or tap the <b>×</b> shown while a line is selected.</p>'+
     '<p>The <b>last number</b> on a line is its amount. <b>2x30</b> and <b>20+30</b> also work. A line that starts with <b>#</b> is a note and is not added to the total.</p>'+
-    '<p>Tap the <b>circle</b> to the left of a line to mark it as <b>paid</b>. The bottom bar then shows what is still <b>outstanding</b> (total minus paid) for the page and for the month. Ticks are saved and sync to your other devices.</p>'+
+    '<p>Tap the <b>circle</b> to the left of a line to mark it as <b>paid</b>. The bottom bar then shows, for the whole month, how much you have <b>paid</b> and how much is <b>remaining to pay</b> (total minus paid). Ticks are saved and sync to your other devices.</p>'+
     '<p>The number on each tab is that page\'s total. Tap the selected tab again to open its options.</p>'+
     '<p>Under <b>Regular expenses</b> list the bills you pay every month. Their total becomes your monthly budget, and the header turns <b>yellow</b> when spending nears it and <b>red</b> when it goes over.</p>'+
     (CLOUD?'<p>Your data is private to your account and syncs between your devices when you sign in.</p>'
