@@ -10,6 +10,8 @@ Plain HTML, CSS and JavaScript. No framework and no build step. It is hosted on 
 - **Monthly screens:** the current month opens automatically after sign-in. Move between months with the arrows; each month is independent.
 - **Regular Expenses:** a personal list of recurring bills (rent, recharge, EMI, subscriptions...). Their total is the monthly budget, and one tap adds them to the current month.
 - **Budget colors:** the month header stays default below 87.5% of the budget (for an 80,000 budget: below 70,000), turns **yellow** from there up to the budget, and **red** above it.
+- **Paid / remaining:** tick a line to mark it paid. The bottom bar shows what you have paid and what is still to pay this month.
+- **Carry over to the next month:** the next-month arrow copies all entries into an empty next month, unticked.
 - **Personal preferences:** theme, text size, expense name color, amount color, manual budget and warning level.
 - **Works offline** and syncs between your devices when you are back online.
 

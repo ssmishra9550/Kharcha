@@ -547,8 +547,33 @@ function shift(n){
   const [y,m]=cur.split('-').map(Number);
   goMonth(mk(new Date(y,m-1+n,1)));
 }
+// Going forward with the next-month button copies this month's entries into the next month, all unpaid.
+// It only happens when the next month has nothing in it yet, so nothing is duplicated or overwritten.
+// Copies get fixed ids (original id + "@" + month) and u = 1, so two devices that both copy end up with the
+// same lines after syncing, and any real edit or tick always wins over a copy.
+function carryOver(src,k){
+  const base=id=>id.split('@')[0];
+  let count=0;
+  const pages=src.pages.map(p=>{
+    const rows=p.rows.filter(r=>r.t.trim()).map(r=>{count++;return {id:base(r.id)+'@'+k,t:r.t,u:1,d:0}});
+    rows.push(newRow());
+    return {id:base(p.id)+'@'+k,name:p.name,nu:0,rows,del:[]};
+  });
+  const old=S.months[k];
+  S.months[k]={pages,active:base(src.active)+'@'+k,gone:old?old.gone:[]};
+  return count;
+}
+function nextMonth(){
+  const [y,m]=cur.split('-').map(Number), k=mk(new Date(y,m,1)), src=S.months[cur];
+  if(src&&hasData(src)&&!(S.months[k]&&hasData(S.months[k]))){
+    const n=carryOver(src,k);
+    save();
+    toast('Copied '+n+(n===1?' entry':' entries')+' from '+titleOf(cur)+', all unpaid');
+  }
+  goMonth(k);
+}
 $('#prev').onclick=()=>shift(-1);
-$('#next').onclick=()=>shift(1);
+$('#next').onclick=nextMonth;
 $('#title').onclick=openMonths;
 $('#menu').onclick=openMenu;
 
@@ -680,6 +705,7 @@ function openHelp(){
   d.innerHTML='<p>Press <b>Enter</b> for a new line. Press <b>Backspace</b> on an empty line to remove it, or tap the <b>×</b> shown while a line is selected.</p>'+
     '<p>The <b>last number</b> on a line is its amount. <b>2x30</b> and <b>20+30</b> also work. A line that starts with <b>#</b> is a note and is not added to the total.</p>'+
     '<p>Tap the <b>circle</b> to the left of a line to mark it as <b>paid</b>. The bottom bar then shows, for the whole month, how much you have <b>paid</b> and how much is <b>remaining to pay</b> (total minus paid). Ticks are saved and sync to your other devices.</p>'+
+    '<p>Tap the <b>next month</b> arrow (›) to continue into the following month: all of this month\'s entries are copied there, with no ticks. This happens only when the next month is still empty, and only with that arrow.</p>'+
     '<p>The number on each tab is that page\'s total. Tap the selected tab again to open its options.</p>'+
     '<p>Under <b>Regular expenses</b> list the bills you pay every month. Their total becomes your monthly budget, and the header turns <b>yellow</b> when spending nears it and <b>red</b> when it goes over.</p>'+
     (CLOUD?'<p>Your data is private to your account and syncs between your devices when you sign in.</p>'
